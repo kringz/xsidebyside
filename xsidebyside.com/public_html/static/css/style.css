@@ -1,0 +1,116 @@
+/* Custom styles for Trino Version Comparison App */
+
+/* General Layout */
+body {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+/* Version Selection Form */
+.version-selector {
+    margin-bottom: 2rem;
+}
+
+/* Comparison Results */
+.comparison-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.version-badge {
+    font-size: 0.8rem;
+    font-weight: normal;
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.5rem;
+    background-color: #343a40;
+    color: #fff;
+    border-radius: 4px;
+}
+
+.connector-section {
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.connector-header {
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.connector-badge {
+    font-size: 0.8rem;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 10px;
+}
+
+.connector-content {
+    padding: 1rem;
+}
+
+.change-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.1);
+}
+
+.change-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.breaking-change {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left: 3px solid #dc3545;
+    padding: 0.5rem;
+}
+
+.release-notes-link {
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+/* Search */
+.search-form {
+    margin-bottom: 2rem;
+}
+
+.search-results {
+    margin-top: 1rem;
+}
+
+/* Loading Indicator */
+.loading-spinner {
+    display: none;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .version-selector .col-md-5,
+    .version-selector .col-md-2 {
+        margin-bottom: 1rem;
+    }
+    
+    .connector-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .connector-badge {
+        margin-top: 0.5rem;
+    }
+}

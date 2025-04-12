@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Trino Version Comparison - Home{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">
+                    <i class="fa-solid fa-code-compare me-2"></i>Compare Trino Versions
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                {% if request.args.get('refresh_status') == 'success' %}
+                <div class="alert alert-success" role="alert">
+                    <i class="fa-solid fa-check-circle me-2"></i>Version data refreshed successfully!
+                </div>
+                {% elif request.args.get('refresh_status') == 'error' %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fa-solid fa-exclamation-circle me-2"></i>Error refreshing data: {{ request.args.get('error', 'Unknown error') }}
+                </div>
+                {% endif %}
+                
+                <form id="version-form" action="{{ url_for('compare') }}" method="post" class="version-selector">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="from-version" name="from_version">
+                                    <option value="">Select version</option>
+                                    {% for version in versions %}
+                                    <option value="{{ version }}">{{ version }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="from-version">From Version</label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2 text-center">
+                            <button type="button" id="swap-versions" class="btn btn-secondary" 
+                                    data-bs-toggle="tooltip" title="Swap versions">
+                                <i class="fa-solid fa-exchange-alt"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-5">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="to-version" name="to_version">
+                                    <option value="">Select version</option>
+                                    {% for version in versions %}
+                                    <option value="{{ version }}">{{ version }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="to-version">To Version</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fa-solid fa-search me-2"></i>Compare Versions
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="loading-spinner" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Generating comparison...</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-secondary text-white">
+                <h4 class="mb-0">
+                    <i class="fa-solid fa-search me-2"></i>Search for Changes
+                </h4>
+            </div>
+            <div class="card-body">
+                <form id="search-form" class="search-form">
+                    <div class="input-group mb-3">
+                        <input type="text" id="search-keyword" class="form-control" 
+                               placeholder="Search for specific changes (min 3 characters)">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fa-solid fa-search"></i> Search
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="search-spinner" class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Searching...</p>
+                </div>
+                
+                <div id="search-results" class="search-results">
+                    <!-- Search results will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

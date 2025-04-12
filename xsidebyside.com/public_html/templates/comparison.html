@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparison: {{ from_version }} to {{ to_version }}{% endblock %}
+
+{% block content %}
+<div class="comparison-header">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>
+            <i class="fa-solid fa-code-compare me-2"></i>
+            Comparing Trino {{ from_version }} to {{ to_version }}
+        </h2>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>New Comparison
+        </a>
+    </div>
+    
+    <div class="d-flex justify-content-between">
+        <div>
+            <span class="badge bg-info me-2">{{ summary.total_count }} Total Changes</span>
+            <span class="badge bg-primary me-2">{{ summary.connector_count }} Connector Changes</span>
+            <span class="badge bg-secondary">{{ summary.general_count }} General Changes</span>
+        </div>
+        <div>
+            <button id="expand-all" class="btn btn-sm btn-outline-light me-2">
+                <i class="fa-solid fa-angle-down me-1"></i>Expand All
+            </button>
+            <button id="collapse-all" class="btn btn-sm btn-outline-light">
+                <i class="fa-solid fa-angle-up me-1"></i>Collapse All
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if connector_changes %}
+<h3>
+    <i class="fa-solid fa-plug me-2"></i>Connector Changes 
+    <span class="badge bg-primary">{{ summary.connector_count }}</span>
+</h3>
+
+{% for connector, changes in connector_changes.items() %}
+<div class="connector-section">
+    <div class="connector-header">
+        <h4 class="mb-0">
+            <i class="fa-solid fa-database me-2"></i>{{ connector }} Connector
+        </h4>
+        <span class="connector-badge">
+            {{ changes|length }} change{{ "s" if changes|length != 1 }}
+            <span class="collapse-icon">&#9660;</span>
+        </span>
+    </div>
+    <div class="connector-content" style="display: none;">
+        <div class="list-group">
+            {% for change in changes %}
+                <div class="change-item {{ 'breaking-change' if change.is_breaking }}">
+                    <span class="version-badge">v{{ change.version }}</span>
+                    {% if change.is_breaking %}
+                        <span class="badge bg-danger">Breaking Change</span>
+                    {% endif %}
+                    <p class="mt-2">{{ change.text }}</p>
+                    {% if change.issue_number %}
+                        <small class="text-muted">Issue: {{ change.issue_number }}</small>
+                    {% endif %}
+                    <a href="https://trino.io/docs/current/release.html#release-{{ change.version }}" 
+                       target="_blank" class="release-notes-link">
+                        <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if general_changes %}
+<h3 class="mt-4">
+    <i class="fa-solid fa-cog me-2"></i>General Changes 
+    <span class="badge bg-secondary">{{ general_changes|length }}</span>
+</h3>
+
+<div class="connector-section">
+    <div class="connector-header">
+        <h4 class="mb-0">
+            <i class="fa-solid fa-toolbox me-2"></i>General Improvements
+        </h4>
+        <span class="connector-badge">
+            {{ general_changes|length }} change{{ "s" if general_changes|length != 1 }}
+            <span class="collapse-icon">&#9660;</span>
+        </span>
+    </div>
+    <div class="connector-content" style="display: none;">
+        <div class="list-group">
+            {% for change in general_changes %}
+                <div class="change-item {{ 'breaking-change' if change.is_breaking }}">
+                    <span class="version-badge">v{{ change.version }}</span>
+                    {% if change.is_breaking %}
+                        <span class="badge bg-danger">Breaking Change</span>
+                    {% endif %}
+                    <p class="mt-2">{{ change.text }}</p>
+                    {% if change.issue_number %}
+                        <small class="text-muted">Issue: {{ change.issue_number }}</small>
+                    {% endif %}
+                    <a href="https://trino.io/docs/current/release.html#release-{{ change.version }}" 
+                       target="_blank" class="release-notes-link">
+                        <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not connector_changes and not general_changes %}
+<div class="alert alert-info">
+    <i class="fa-solid fa-info-circle me-2"></i>No changes found between these versions.
+</div>
+{% endif %}
+{% endblock %}
