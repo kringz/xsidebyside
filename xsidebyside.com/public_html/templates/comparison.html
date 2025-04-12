@@ -60,7 +60,7 @@
                     {% if change.issue_number %}
                         <small class="text-muted">Issue: {{ change.issue_number }}</small>
                     {% endif %}
-                    <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html" 
+                    <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html#{{ connector|lower }}-connector" 
                        target="_blank" class="release-notes-link">
                         <i class="fa-solid fa-external-link-alt"></i> View in release notes
                     </a>
