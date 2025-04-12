@@ -1,0 +1,78 @@
+[Fri Apr 11 23:23:54.988188 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004] mod_wsgi (pid=1689305): Exception occurred processing WSGI script '/var/www/xsidebyside.com/wsgi.py'.
+[Fri Apr 11 23:23:54.988581 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004] Traceback (most recent call last):
+[Fri Apr 11 23:23:54.988748 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 2213, in __call__
+[Fri Apr 11 23:23:54.988755 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self.wsgi_app(environ, start_response)
+[Fri Apr 11 23:23:54.988762 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/werkzeug/middleware/proxy_fix.py", line 182, in __call__
+[Fri Apr 11 23:23:54.988766 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self.app(environ, start_response)
+[Fri Apr 11 23:23:54.988773 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 2193, in wsgi_app
+[Fri Apr 11 23:23:54.988777 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     response = self.handle_exception(e)
+[Fri Apr 11 23:23:54.988783 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 2190, in wsgi_app
+[Fri Apr 11 23:23:54.988787 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     response = self.full_dispatch_request()
+[Fri Apr 11 23:23:54.988793 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 1486, in full_dispatch_request
+[Fri Apr 11 23:23:54.988797 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     rv = self.handle_user_exception(e)
+[Fri Apr 11 23:23:54.988803 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 1484, in full_dispatch_request
+[Fri Apr 11 23:23:54.988807 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     rv = self.dispatch_request()
+[Fri Apr 11 23:23:54.988813 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/flask/app.py", line 1469, in dispatch_request
+[Fri Apr 11 23:23:54.988817 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+[Fri Apr 11 23:23:54.988823 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/var/www/xsidebyside.com/public_html/views.py", line 19, in index
+[Fri Apr 11 23:23:54.988842 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     ).all()
+[Fri Apr 11 23:23:54.988848 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/query.py", line 2693, in all
+[Fri Apr 11 23:23:54.988852 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self._iter().all()  # type: ignore
+[Fri Apr 11 23:23:54.988858 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/query.py", line 2847, in _iter
+[Fri Apr 11 23:23:54.988862 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+[Fri Apr 11 23:23:54.988868 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/session.py", line 2308, in execute
+[Fri Apr 11 23:23:54.988872 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self._execute_internal(
+[Fri Apr 11 23:23:54.988878 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/session.py", line 2180, in _execute_internal
+[Fri Apr 11 23:23:54.988882 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     conn = self._connection_for_bind(bind)
+[Fri Apr 11 23:23:54.988888 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/session.py", line 2047, in _connection_for_bind
+[Fri Apr 11 23:23:54.988892 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return trans._connection_for_bind(engine, execution_options)
+[Fri Apr 11 23:23:54.988897 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "<string>", line 2, in _connection_for_bind
+[Fri Apr 11 23:23:54.988903 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/state_changes.py", line 139, in _go
+[Fri Apr 11 23:23:54.988907 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     ret_value = fn(self, *arg, **kw)
+[Fri Apr 11 23:23:54.988913 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/orm/session.py", line 1143, in _connection_for_bind
+[Fri Apr 11 23:23:54.988917 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     conn = bind.connect()
+[Fri Apr 11 23:23:54.988923 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/engine/base.py", line 3269, in connect
+[Fri Apr 11 23:23:54.988926 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self._connection_cls(self)
+[Fri Apr 11 23:23:54.988932 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/engine/base.py", line 145, in __init__
+[Fri Apr 11 23:23:54.988936 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     self._dbapi_connection = engine.raw_connection()
+[Fri Apr 11 23:23:54.988942 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/engine/base.py", line 3293, in raw_connection
+[Fri Apr 11 23:23:54.988946 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self.pool.connect()
+[Fri Apr 11 23:23:54.988951 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 452, in connect
+[Fri Apr 11 23:23:54.988955 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return _ConnectionFairy._checkout(self)
+[Fri Apr 11 23:23:54.988961 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 1269, in _checkout
+[Fri Apr 11 23:23:54.988965 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     fairy = _ConnectionRecord.checkout(pool)
+[Fri Apr 11 23:23:54.988976 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 716, in checkout
+[Fri Apr 11 23:23:54.988980 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     rec = pool._do_get()
+[Fri Apr 11 23:23:54.988986 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/impl.py", line 169, in _do_get
+[Fri Apr 11 23:23:54.988990 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     with util.safe_reraise():
+[Fri Apr 11 23:23:54.988995 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+[Fri Apr 11 23:23:54.988999 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     raise exc_value.with_traceback(exc_tb)
+[Fri Apr 11 23:23:54.989005 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/impl.py", line 167, in _do_get
+[Fri Apr 11 23:23:54.989009 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self._create_connection()
+[Fri Apr 11 23:23:54.989015 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 393, in _create_connection
+[Fri Apr 11 23:23:54.989019 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return _ConnectionRecord(self)
+[Fri Apr 11 23:23:54.989024 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 678, in __init__
+[Fri Apr 11 23:23:54.989028 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     self.__connect()
+[Fri Apr 11 23:23:54.989034 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 902, in __connect
+[Fri Apr 11 23:23:54.989038 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     with util.safe_reraise():
+[Fri Apr 11 23:23:54.989043 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/util/langhelpers.py", line 146, in __exit__
+[Fri Apr 11 23:23:54.989047 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     raise exc_value.with_traceback(exc_tb)
+[Fri Apr 11 23:23:54.989053 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/pool/base.py", line 898, in __connect
+[Fri Apr 11 23:23:54.989057 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     self.dbapi_connection = connection = pool._invoke_creator(self)
+[Fri Apr 11 23:23:54.989063 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/engine/create.py", line 645, in connect
+[Fri Apr 11 23:23:54.989066 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return dialect.connect(*cargs, **cparams)
+[Fri Apr 11 23:23:54.989072 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]   File "/usr/local/lib/python3.10/dist-packages/sqlalchemy/engine/default.py", line 616, in connect
+[Fri Apr 11 23:23:54.989076 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004]     return self.loaded_dbapi.connect(*cargs, **cparams)
+[Fri Apr 11 23:23:54.989093 2025] [wsgi:error] [pid 1689305] [remote 172.71.147.87:15004] TypeError: 'connect_timeout' is an invalid keyword argument for this function
+[Fri Apr 11 23:26:28.863902 2025] [wsgi:error] [pid 1689469] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:26:28.872589 2025] [wsgi:error] [pid 1689469] INFO:public_html.app:Database tables created successfully
+[Fri Apr 11 23:26:28.874851 2025] [wsgi:error] [pid 1689469] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:26:28.875529 2025] [wsgi:error] [pid 1689469] INFO:app:Database tables created successfully
+[Fri Apr 11 23:26:28.877713 2025] [wsgi:error] [pid 1689469] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:26:28.878261 2025] [wsgi:error] [pid 1689469] INFO:app:Database tables created successfully
+[Fri Apr 11 23:32:20.492535 2025] [wsgi:error] [pid 1689670] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:32:20.501098 2025] [wsgi:error] [pid 1689670] INFO:public_html.app:Database tables created successfully
+[Fri Apr 11 23:32:20.502443 2025] [wsgi:error] [pid 1689670] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:32:20.503007 2025] [wsgi:error] [pid 1689670] INFO:app:Database tables created successfully
+[Fri Apr 11 23:32:20.504212 2025] [wsgi:error] [pid 1689670] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:32:20.504722 2025] [wsgi:error] [pid 1689670] INFO:app:Database tables created successfully

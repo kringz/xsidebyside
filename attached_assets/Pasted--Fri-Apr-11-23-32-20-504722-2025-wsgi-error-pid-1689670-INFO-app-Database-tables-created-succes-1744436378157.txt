@@ -1,0 +1,48 @@
+[Fri Apr 11 23:32:20.504722 2025] [wsgi:error] [pid 1689670] INFO:app:Database tables created successfully
+[Fri Apr 11 23:35:51.012568 2025] [wsgi:error] [pid 1689787] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:35:51.022528 2025] [wsgi:error] [pid 1689787] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:35:51.023677 2025] [wsgi:error] [pid 1689787] INFO:app:Database tables created successfully
+[Fri Apr 11 23:35:51.023962 2025] [wsgi:error] [pid 1689787] ERROR:public_html.app:Error creating database tables: cannot import name 'TrinoVersion' from partially initialized module 'models' (most likely due to a circular import) (/var/www/xsidebyside.com/public_html/models.py)
+[Fri Apr 11 23:36:21.809939 2025] [wsgi:error] [pid 1689788] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:36:21.819196 2025] [wsgi:error] [pid 1689788] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:36:21.820352 2025] [wsgi:error] [pid 1689788] INFO:app:Database tables created successfully
+[Fri Apr 11 23:36:21.820647 2025] [wsgi:error] [pid 1689788] ERROR:public_html.app:Error creating database tables: cannot import name 'TrinoVersion' from partially initialized module 'models' (most likely due to a circular import) (/var/www/xsidebyside.com/public_html/models.py)
+[Fri Apr 11 23:36:21.821834 2025] [wsgi:error] [pid 1689788] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:39:20.991769 2025] [wsgi:error] [pid 1689894] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:39:21.001786 2025] [wsgi:error] [pid 1689894] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:39:21.002902 2025] [wsgi:error] [pid 1689894] INFO:app:Database tables created successfully
+[Fri Apr 11 23:39:21.004270 2025] [wsgi:error] [pid 1689894] ERROR:public_html.app:Error creating database tables: invalid syntax (init_db.py, line 1)
+[Fri Apr 11 23:39:21.004603 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028] mod_wsgi (pid=1689894): Failed to exec Python script file '/var/www/xsidebyside.com/wsgi.py'.
+[Fri Apr 11 23:39:21.004629 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028] mod_wsgi (pid=1689894): Exception occurred processing WSGI script '/var/www/xsidebyside.com/wsgi.py'.
+[Fri Apr 11 23:39:21.004858 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028] Traceback (most recent call last):
+[Fri Apr 11 23:39:21.004885 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]   File "/var/www/xsidebyside.com/wsgi.py", line 42, in <module>
+[Fri Apr 11 23:39:21.004892 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]     application = find_flask_app()
+[Fri Apr 11 23:39:21.004897 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]   File "/var/www/xsidebyside.com/wsgi.py", line 29, in find_flask_app
+[Fri Apr 11 23:39:21.004900 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]     module = __import__(module_path, fromlist=[app_name])
+[Fri Apr 11 23:39:21.004917 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]   File "/var/www/xsidebyside.com/public_html/app.py", line 57, in <module>
+[Fri Apr 11 23:39:21.004921 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]     from views import *  # noqa: F401, E402
+[Fri Apr 11 23:39:21.004925 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]   File "/var/www/xsidebyside.com/public_html/views.py", line 1, in <module>
+[Fri Apr 11 23:39:21.004929 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]     import init_db  # noqa: F401
+[Fri Apr 11 23:39:21.004941 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]   File "/var/www/xsidebyside.com/public_html/init_db.py", line 1
+[Fri Apr 11 23:39:21.004949 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]     ifrom app import app, db, logger
+[Fri Apr 11 23:39:21.004964 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028]           ^^^
+[Fri Apr 11 23:39:21.004971 2025] [wsgi:error] [pid 1689894] [remote 172.71.147.187:32028] SyntaxError: invalid syntax
+[Fri Apr 11 23:39:23.827673 2025] [wsgi:error] [pid 1689895] INFO:public_html.app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:39:23.836677 2025] [wsgi:error] [pid 1689895] INFO:app:Using database connection: sqlite:///trino_versions.db
+[Fri Apr 11 23:39:23.837745 2025] [wsgi:error] [pid 1689895] INFO:app:Database tables created successfully
+[Fri Apr 11 23:39:23.838170 2025] [wsgi:error] [pid 1689895] ERROR:public_html.app:Error creating database tables: invalid syntax (init_db.py, line 1)
+[Fri Apr 11 23:39:23.838494 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104] mod_wsgi (pid=1689895): Failed to exec Python script file '/var/www/xsidebyside.com/wsgi.py'.
+[Fri Apr 11 23:39:23.838519 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104] mod_wsgi (pid=1689895): Exception occurred processing WSGI script '/var/www/xsidebyside.com/wsgi.py'.
+[Fri Apr 11 23:39:23.838758 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104] Traceback (most recent call last):
+[Fri Apr 11 23:39:23.838783 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]   File "/var/www/xsidebyside.com/wsgi.py", line 42, in <module>
+[Fri Apr 11 23:39:23.838790 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]     application = find_flask_app()
+[Fri Apr 11 23:39:23.838797 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]   File "/var/www/xsidebyside.com/wsgi.py", line 29, in find_flask_app
+[Fri Apr 11 23:39:23.838802 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]     module = __import__(module_path, fromlist=[app_name])
+[Fri Apr 11 23:39:23.838808 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]   File "/var/www/xsidebyside.com/public_html/app.py", line 57, in <module>
+[Fri Apr 11 23:39:23.838812 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]     from views import *  # noqa: F401, E402
+[Fri Apr 11 23:39:23.838818 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]   File "/var/www/xsidebyside.com/public_html/views.py", line 1, in <module>
+[Fri Apr 11 23:39:23.838822 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]     import init_db  # noqa: F401
+[Fri Apr 11 23:39:23.838835 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]   File "/var/www/xsidebyside.com/public_html/init_db.py", line 1
+[Fri Apr 11 23:39:23.838845 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]     ifrom app import app, db, logger
+[Fri Apr 11 23:39:23.838862 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104]           ^^^
+[Fri Apr 11 23:39:23.838872 2025] [wsgi:error] [pid 1689895] [remote 172.71.147.91:49104] SyntaxError: invalid syntax
