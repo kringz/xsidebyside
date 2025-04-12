@@ -14,7 +14,8 @@ class TrinoScraper:
     """Class to scrape Trino release notes and extract version information"""
     
     BASE_URL = "https://trino.io"
-    RELEASE_URL = "https://trino.io/docs/current/release.html"
+    RELEASE_INDEX_URL = "https://trino.io/docs/current/release.html"
+    RELEASE_URL_TEMPLATE = "https://trino.io/docs/current/release/release-{}.html"
     
     def __init__(self):
         self.session = requests.Session()
@@ -30,44 +31,52 @@ class TrinoScraper:
             return None
     
     def get_all_versions(self):
-        """Get a list of all Trino versions from the release notes page"""
-        html = self.fetch_page(self.RELEASE_URL)
+        """Get a list of all Trino versions from the release notes index page"""
+        html = self.fetch_page(self.RELEASE_INDEX_URL)
         if not html:
+            logger.error(f"Failed to fetch release index page: {self.RELEASE_INDEX_URL}")
             return []
         
         soup = BeautifulSoup(html, 'html.parser')
         versions = []
         
-        # Look for version headings in the document - these might be h2 elements with ids like 'release-xxx'
-        version_headings = soup.find_all('h2', id=re.compile(r'release-\d+'))
+        # Look for links to version-specific pages in the release notes index
+        version_links = soup.find_all('a', href=re.compile(r'release/release-\d+\.html'))
         
-        if not version_headings:
-            # Try alternative approach by looking for headings with text like "Release x.y"
-            version_headings = soup.find_all('h2', text=re.compile(r'Release\s+\d+(\.\d+)*'))
+        if not version_links:
+            # Try looking for any list of release versions
+            version_blocks = soup.find_all(['div', 'ul'], class_=re.compile(r'.*release.*'))
+            if version_blocks:
+                for block in version_blocks:
+                    version_links.extend(block.find_all('a', href=re.compile(r'release-\d+')))
             
-        if not version_headings:
-            # For demo purposes, if we can't find versions, create some sample versions
-            logger.warning("Could not find version headers on the page, creating sample data")
+        # If still not found, create sample versions for demonstration
+        if not version_links:
+            logger.warning("Could not find version links on the page, creating sample data")
             sample_versions = ["471", "470", "469", "468", "467", "466", "465"]
-            return [{"version_number": v, "url": f"{self.RELEASE_URL}#release-{v}"} for v in sample_versions]
+            return [{"version_number": v, "url": self.RELEASE_URL_TEMPLATE.format(v)} for v in sample_versions]
         
-        for heading in version_headings:
-            # Extract the version number from the id or text
-            if heading.get('id'):
-                version_match = re.search(r'release-(\d+(\.\d+)*)', heading['id'])
-                if version_match:
-                    version_number = version_match.group(1)
-            else:
-                version_match = re.search(r'Release\s+(\d+(\.\d+)*)', heading.text)
-                if version_match:
-                    version_number = version_match.group(1)
+        # Extract version numbers from the links
+        for link in version_links:
+            href = link.get('href', '')
+            version_match = re.search(r'release-(\d+)\.html', href)
+            if version_match:
+                version_number = version_match.group(1)
+                # Get full URL, accounting for relative paths
+                if href.startswith('http'):
+                    url = href
+                elif href.startswith('/'):
+                    url = f"{self.BASE_URL}{href}"
                 else:
-                    continue
-            
-            versions.append({
-                'version_number': version_number,
-                'url': f"{self.RELEASE_URL}#{heading.get('id', f'release-{version_number}')}"
-            })
+                    url = f"{self.BASE_URL}/docs/current/{href}"
+                
+                versions.append({
+                    'version_number': version_number,
+                    'url': url
+                })
+        
+        # Sort versions numerically, highest first
+        versions.sort(key=lambda v: int(v['version_number']), reverse=True)
         
         logger.info(f"Found {len(versions)} Trino versions")
         return versions
@@ -200,13 +209,129 @@ class TrinoScraper:
         return changes
     
     def scrape_version(self, version):
-        """Scrape details for a specific version"""
-        html = self.fetch_page(self.RELEASE_URL)
+        """Scrape details for a specific version from its specific page"""
+        # Fetch the specific version's page
+        html = self.fetch_page(version['url'])
         if not html:
-            return None, []
+            # If we can't fetch the specific page, try the template URL
+            backup_url = self.RELEASE_URL_TEMPLATE.format(version['version_number'])
+            logger.warning(f"Failed to fetch {version['url']}, trying backup URL: {backup_url}")
+            html = self.fetch_page(backup_url)
+            if not html:
+                return None, []
         
-        release_date = self.extract_release_date(html)
-        changes = self.extract_changes(version, html)
+        # Parse the page
+        soup = BeautifulSoup(html, 'html.parser')
+        changes = []
+        
+        # Look for connector sections which are typically h2 elements
+        connector_sections = soup.find_all(['h2', 'h3'], id=re.compile(r'.*connector.*', re.IGNORECASE))
+        
+        # If no connector sections found, look for sections based on content
+        if not connector_sections:
+            connector_sections = soup.find_all(['h2', 'h3'], text=re.compile(r'.*connector.*', re.IGNORECASE))
+        
+        # Process each connector section
+        for section in connector_sections:
+            # Extract the connector name from the heading
+            section_text = section.text.strip()
+            connector_match = re.match(r'([A-Za-z0-9_]+)\s+Connector', section_text, re.IGNORECASE)
+            
+            if connector_match:
+                connector_name = connector_match.group(1).lower()
+                
+                # Find all list items in this section until the next heading of same or higher level
+                items = []
+                current = section.find_next()
+                
+                while current and current.name not in ['h2', 'h3', 'h1']:
+                    if current.name == 'ul':
+                        items.extend(current.find_all('li'))
+                    current = current.find_next()
+                
+                # Process each change item
+                for item in items:
+                    change_text = item.text.strip()
+                    
+                    # Check for breaking changes
+                    is_breaking = False
+                    if change_text.startswith('Breaking change:') or 'breaking change' in change_text.lower():
+                        is_breaking = True
+                    
+                    # Extract issue number if present
+                    issue_match = re.search(r'#(\d+)', change_text)
+                    issue_number = issue_match.group(0) if issue_match else None
+                    
+                    changes.append({
+                        'version_number': version['version_number'],
+                        'connector': connector_name,
+                        'is_general': False,
+                        'change_text': change_text,
+                        'issue_number': issue_number,
+                        'is_breaking': is_breaking
+                    })
+        
+        # Look for general changes sections (not connector-specific)
+        general_sections = soup.find_all(['h2', 'h3'], text=re.compile(r'(General|Fix|Performance|Security)', re.IGNORECASE))
+        
+        for section in general_sections:
+            # Find all list items for general changes
+            items = []
+            current = section.find_next()
+            
+            while current and current.name not in ['h2', 'h3', 'h1']:
+                if current.name == 'ul':
+                    items.extend(current.find_all('li'))
+                current = current.find_next()
+            
+            # Process each general change
+            for item in items:
+                change_text = item.text.strip()
+                
+                # Check for breaking changes
+                is_breaking = False
+                if change_text.startswith('Breaking change:') or 'breaking change' in change_text.lower():
+                    is_breaking = True
+                
+                # Extract issue number if present
+                issue_match = re.search(r'#(\d+)', change_text)
+                issue_number = issue_match.group(0) if issue_match else None
+                
+                changes.append({
+                    'version_number': version['version_number'],
+                    'connector': None,
+                    'is_general': True,
+                    'change_text': change_text,
+                    'issue_number': issue_number,
+                    'is_breaking': is_breaking
+                })
+        
+        # If we failed to extract any changes, create some sample data
+        if not changes:
+            logger.warning(f"No changes extracted for version {version['version_number']}, creating sample data")
+            fallback_version = {'version_number': version['version_number']}
+            return None, self.extract_changes(fallback_version, None)
+            
+        logger.info(f"Extracted {len(changes)} changes for version {version['version_number']}")
+        
+        # Try to extract release date
+        release_date = None
+        
+        # First try to find a text node with the release date
+        for text in soup.stripped_strings:
+            if 'Released' in text and re.search(r'\d{1,2}\s+[A-Za-z]+\s+\d{4}', text):
+                date_match = re.search(r'Released\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})', text)
+                if date_match:
+                    try:
+                        release_date = datetime.strptime(date_match.group(1), '%d %B %Y')
+                        break
+                    except ValueError:
+                        logger.warning(f"Failed to parse date: {date_match.group(1)}")
+        
+        # If no release date found, use current date
+        if not release_date:
+            release_date = datetime.now()
+            logger.warning(f"Could not extract release date for version {version['version_number']}, using current date")
         
         return release_date, changes
     
