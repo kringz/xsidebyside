@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
-{% block title %}Comparison: {{ from_version }} to {{ to_version }}{% endblock %}
+{% block title %}{{ product|title }} Comparison: {{ from_version }} to {{ to_version }}{% endblock %}
 
 {% block content %}
 <div class="comparison-header">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>
             <i class="fa-solid fa-code-compare me-2"></i>
-            Comparing Trino {{ from_version }} to {{ to_version }}
+            Comparing {{ product|title }} {{ from_version }} to {{ to_version }}
         </h2>
-        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('index', product=product) }}" class="btn btn-outline-secondary">
             <i class="fa-solid fa-arrow-left me-2"></i>New Comparison
         </a>
     </div>
@@ -60,10 +60,17 @@
                     {% if change.issue_number %}
                         <small class="text-muted">Issue: {{ change.issue_number }}</small>
                     {% endif %}
-                    <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html#{{ connector|lower }}-connector" 
-                       target="_blank" class="release-notes-link">
-                        <i class="fa-solid fa-external-link-alt"></i> View in release notes
-                    </a>
+                    {% if product == 'starburst' %}
+                        <a href="https://docs.starburst.io/latest/release/release-{{ change.version }}.html" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% else %}
+                        <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html#{{ connector|lower }}-connector" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -100,10 +107,17 @@
                     {% if change.issue_number %}
                         <small class="text-muted">Issue: {{ change.issue_number }}</small>
                     {% endif %}
-                    <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html" 
-                       target="_blank" class="release-notes-link">
-                        <i class="fa-solid fa-external-link-alt"></i> View in release notes
-                    </a>
+                    {% if product == 'starburst' %}
+                        <a href="https://docs.starburst.io/latest/release/release-{{ change.version }}.html" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% else %}
+                        <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
