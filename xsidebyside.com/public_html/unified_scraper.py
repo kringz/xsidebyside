@@ -106,10 +106,22 @@ class BaseScraper:
                 # Extract and save changes
                 changes = self.extract_changes(version_info, notes_html)
                 for change in changes:
+                    # Detect breaking changes
+                    change_text = change['text']
+                    is_breaking = ('breaking change' in change_text.lower() or 
+                                 change_text.lower().startswith('breaking change:') or
+                                 '⚠️ breaking change' in change_text.lower())
+                    
+                    # Detect general changes (non-connector specific)
+                    is_general = ('[general' in change_text.lower() or 
+                                change.get('connector') is None)
+                    
                     version_change = VersionChange(
                         version_id=version.id,
                         change_text=change['text'],
-                        issue_number=change.get('issue_number')
+                        issue_number=change.get('issue_number'),
+                        is_breaking=is_breaking,
+                        is_general=is_general
                     )
                     db.session.add(version_change)
                 
@@ -180,38 +192,110 @@ class TrinoScraper(BaseScraper):
     
     def extract_release_date(self, notes_html):
         """Extract release date from release notes HTML"""
-        match = re.search(r'Released (\d{1,2} [A-Za-z]+ \d{4})', notes_html)
-        if match:
-            date_str = match.group(1)
-            try:
-                return datetime.strptime(date_str, '%d %B %Y')
-            except ValueError:
-                logger.warning(f"Failed to parse date: {date_str}")
+        # Trino format: "Release 478 (29 Oct 2025)"
+        patterns = [
+            r'\((\d{1,2} [A-Za-z]+ \d{4})\)',  # Date in parentheses
+            r'Released[:\s]+(\d{1,2} [A-Za-z]+ \d{4})',  # Legacy format
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, notes_html)
+            if match:
+                date_str = match.group(1)
+                try:
+                    return datetime.strptime(date_str, '%d %B %Y')
+                except ValueError:
+                    try:
+                        # Try abbreviated month format (Oct instead of October)
+                        return datetime.strptime(date_str, '%d %b %Y')
+                    except ValueError:
+                        logger.warning(f"Failed to parse date: {date_str}")
         return None
     
     def extract_changes(self, version, notes_html):
         """Extract changes from release notes HTML for a specific version"""
+        # Debug logging
+        logger.info(f"🔍 TrinoScraper.extract_changes called for version: {version.get('version_number', 'UNKNOWN')}")
+        logger.info(f"📄 HTML length: {len(notes_html)} characters")
+        
         soup = BeautifulSoup(notes_html, 'html.parser')
         
-        # Find the section for this version
-        version_section = soup.find('h2', {'id': f'release-{version["version_number"]}'})
-        if not version_section:
-            # Try alternative patterns
-            version_section = soup.find(['h1', 'h2', 'h3'], string=re.compile(f'Release {version["version_number"]}'))
+        # Find the section for this version - updated patterns for current Trino structure
+        version_patterns = [
+            f'release-release-{version["version_number"]}--page-root',  # Current Trino heading format
+            f'release-{version["version_number"]}',  # Legacy pattern
+            f'Release {version["version_number"]}',  # Text-based pattern
+        ]
+        
+        version_section = None
+        for pattern in version_patterns:
+            # Try to find heading with this ID
+            version_section = soup.find(['h1', 'h2', 'h3'], {'id': pattern})
+            if not version_section:
+                # Try to find section with this pattern in ID
+                section = soup.find('section', {'id': re.compile(f'release-{version["version_number"]}.*', re.IGNORECASE)})
+                if section:
+                    version_section = section.find(['h1', 'h2', 'h3'])
+            if not version_section:
+                # Try text-based matching
+                version_section = soup.find(['h1', 'h2', 'h3'], string=re.compile(pattern, re.IGNORECASE))
+            if version_section:
+                break
         
         if not version_section:
-            logger.warning(f"Could not find version section for {version['version_number']}")
+            logger.warning(f"Could not find version section for Trino {version['version_number']}")
             return []
         
         changes = []
         
-        # Find all list items following the version header
+        # Trino has a structure with <section> elements containing connector sections
         next_element = version_section.find_next_sibling()
-        while next_element and next_element.name not in ['h1', 'h2']:
-            if next_element.name == 'ul':
+        while next_element and next_element.name not in ['h1']:  # Stop at next major heading
+            if next_element.name == 'section':  # Section containing connector or topic changes
+                # Find the heading within this section
+                section_heading = next_element.find(['h1', 'h2', 'h3', 'h4'])
+                section_title = section_heading.get_text(strip=True) if section_heading else "Unknown Section"
+                
+                # Find all lists within this section
+                for ul in next_element.find_all('ul'):
+                    for li in ul.find_all('li'):
+                        change_text = li.get_text(strip=True)
+                        if change_text and len(change_text) > 10:  # Basic length filter
+                            # Extract issue number if present
+                            issue_match = re.search(r'\(#(\d+)\)', change_text)
+                            issue_number = issue_match.group(1) if issue_match else None
+                            
+                            # Prefix with section name for context
+                            full_text = f"[{section_title}] {change_text}"
+                            changes.append({
+                                'text': full_text,
+                                'issue_number': issue_number
+                            })
+            elif next_element.name == 'h2':  # Direct connector/section heading (fallback)
+                section_title = next_element.get_text(strip=True)
+                
+                # Find lists under this section
+                section_next = next_element.find_next_sibling()
+                while section_next and section_next.name not in ['h1', 'h2']:
+                    if section_next.name == 'ul':
+                        for li in section_next.find_all('li'):
+                            change_text = li.get_text(strip=True)
+                            if change_text and len(change_text) > 10:
+                                # Extract issue number if present
+                                issue_match = re.search(r'\(#(\d+)\)', change_text)
+                                issue_number = issue_match.group(1) if issue_match else None
+                                
+                                # Prefix with section name for context
+                                full_text = f"[{section_title}] {change_text}"
+                                changes.append({
+                                    'text': full_text,
+                                    'issue_number': issue_number
+                                })
+                    section_next = section_next.find_next_sibling()
+            elif next_element.name == 'ul':  # Direct list under main heading (fallback)
                 for li in next_element.find_all('li'):
                     change_text = li.get_text(strip=True)
-                    if change_text:
+                    if change_text and len(change_text) > 10:
                         # Extract issue number if present
                         issue_match = re.search(r'\(#(\d+)\)', change_text)
                         issue_number = issue_match.group(1) if issue_match else None
@@ -287,25 +371,94 @@ class StarburstScraper(BaseScraper):
     
     def extract_release_date(self, notes_html):
         """Extract release date from Starburst release notes HTML"""
-        # Look for common date patterns in Starburst release notes
+        # Starburst format: "Release 477-e STS (12 Nov 2025)"
         patterns = [
-            r'Released[:\s]+(\d{1,2} [A-Za-z]+ \d{4})',
-            r'Release date[:\s]+(\d{1,2} [A-Za-z]+ \d{4})',
-            r'(\d{1,2} [A-Za-z]+ \d{4})'  # General date pattern
+            r'\((\d{1,2} [A-Za-z]+ \d{4})\)',  # Date in parentheses (primary format)
+            r'Released[:\s]+(\d{1,2} [A-Za-z]+ \d{4})',  # Legacy format
+            r'Release date[:\s]+(\d{1,2} [A-Za-z]+ \d{4})',  # Alternative format
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, notes_html, re.IGNORECASE)
             if match:
                 date_str = match.group(1)
-                try:
-                    return datetime.strptime(date_str, '%d %B %Y')
-                except ValueError:
+                # Try multiple date formats
+                for date_format in ['%d %B %Y', '%d %b %Y', '%B %d, %Y']:
                     try:
-                        return datetime.strptime(date_str, '%B %d, %Y')
+                        return datetime.strptime(date_str, date_format)
                     except ValueError:
-                        logger.warning(f"Failed to parse date: {date_str}")
+                        continue
+                logger.warning(f"Failed to parse date: {date_str}")
         return None
+    
+    def _extract_structured_text(self, li_element):
+        """Extract text from list item preserving nested bullet structure"""
+        result_parts = []
+        
+        # Get direct text content (not from nested elements)
+        for content in li_element.contents:
+            if hasattr(content, 'name'):
+                # This is a tag, skip for now
+                continue
+            else:
+                # This is direct text content
+                text = str(content).strip()
+                if text:
+                    result_parts.append(text)
+        
+        # Find nested lists and format them as bullet points
+        nested_lists = li_element.find_all(['ul', 'ol'], recursive=False)
+        for nested_list in nested_lists:
+            nested_items = nested_list.find_all('li')
+            for nested_li in nested_items:
+                nested_text = nested_li.get_text(separator=' ', strip=True)
+                if nested_text:
+                    result_parts.append(f"• {nested_text}")
+        
+        # Get any remaining text after nested lists
+        remaining_text = []
+        for content in li_element.contents:
+            if hasattr(content, 'name') and content.name not in ['ul', 'ol']:
+                text = content.get_text(separator=' ', strip=True)
+                if text and text not in [item.strip('• ') for item in result_parts]:
+                    remaining_text.append(text)
+        
+        result_parts.extend(remaining_text)
+        
+        # Join all parts with appropriate spacing
+        return ' '.join(result_parts).strip()
+    
+    def _is_valid_change(self, text):
+        """Validate if text represents a meaningful change description"""
+        if not text or len(text.strip()) < 10:
+            return False
+        
+        # Skip obvious non-changes
+        skip_patterns = [
+            r'^Trino \d+$',  # Just version references
+            r'^Release \d+',  # Release headers
+            r'^\d+-e(\.\d+)?\s+(initial\s+)?changes',  # Version change headers
+            r'^\s*$',  # Empty or whitespace only
+            r'^See\s+',  # See references
+            r'^For\s+more\s+information',  # Info references
+            r'^This\s+release',  # Release descriptions
+        ]
+        
+        for pattern in skip_patterns:
+            if re.match(pattern, text.strip(), re.IGNORECASE):
+                return False
+        
+        # Must contain meaningful words (not just property names)
+        meaningful_words = ['added', 'updated', 'fixed', 'removed', 'improved', 'changed', 'support', 'issue',
+                          'feature', 'bug', 'performance', 'security', 'deprecated', 'enabled', 'disabled',
+                          'introduced', 'enhanced', 'resolved', 'corrected', 'optimized']
+
+        # Text should contain at least one meaningful action word or be descriptive
+        text_lower = text.lower()
+        has_meaningful_word = any(word in text_lower for word in meaningful_words)
+        is_descriptive = len(text.split()) >= 4  # At least 4 words for descriptive content
+        
+        return has_meaningful_word or is_descriptive
     
     def extract_changes(self, version, notes_html):
         """Extract changes from Starburst release notes HTML for a specific version"""
@@ -357,8 +510,8 @@ class StarburstScraper(BaseScraper):
                     # Find all list items in this section
                     for ul in next_element.find_all('ul'):
                         for li in ul.find_all('li'):
-                            change_text = li.get_text(strip=True)
-                            if change_text and len(change_text) > 10:  # Skip very short items
+                            change_text = self._extract_structured_text(li)
+                            if self._is_valid_change(change_text):
                                 # Prefix with section name for context
                                 full_text = f"[{section_title}] {change_text}"
                                 changes.append({
@@ -368,8 +521,8 @@ class StarburstScraper(BaseScraper):
                     
                     # Also look for paragraph changes in some sections
                     for p in next_element.find_all('p'):
-                        p_text = p.get_text(strip=True)
-                        if p_text and len(p_text) > 20 and p_text not in ['', 'This release is a short term support (STS) release.']:
+                        p_text = p.get_text(separator=' ', strip=True)
+                        if self._is_valid_change(p_text) and p_text not in ['', 'This release is a short term support (STS) release.']:
                             full_text = f"[{section_title}] {p_text}"
                             changes.append({
                                 'text': full_text,
@@ -378,9 +531,9 @@ class StarburstScraper(BaseScraper):
             elif next_element.name == 'ul':
                 # Handle ULs outside of sections (but skip Trino reference lists)
                 for li in next_element.find_all('li'):
-                    change_text = li.get_text(strip=True)
-                    # Skip Trino version references
-                    if change_text and not re.match(r'^Trino \d+$', change_text):
+                    change_text = li.get_text(separator=' ', strip=True)
+                    # Skip Trino version references and low-quality changes
+                    if self._is_valid_change(change_text) and not re.match(r'^Trino \d+$', change_text):
                         changes.append({
                             'text': change_text,
                             'issue_number': None

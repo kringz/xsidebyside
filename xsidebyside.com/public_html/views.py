@@ -1,12 +1,29 @@
-from flask import render_template, request, jsonify, redirect, url_for
-import logging
-import json
+from flask import render_template, request, jsonify, redirect, url_for, make_response
 from app import app, db
 from models import Product, Version, Connector, VersionChange
 from unified_scraper import UnifiedScraper
+import logging
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.colors import red, black, blue
+import io
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 scraper = UnifiedScraper()
+
+def format_connector_name(name):
+    """Helper function to consistently format connector names without duplicates"""
+    if not name:
+        return None
+    
+    import re
+    # Remove any existing "connector" suffix (case insensitive)
+    base_name = re.sub(r'\s*connector\s*$', '', name.strip(), flags=re.IGNORECASE).strip()
+    # Always add "Connector" back properly
+    return f"{base_name.title()} Connector"
 
 def compare_versions(product_name, from_version, to_version):
     """Compare two versions of a product"""
@@ -39,6 +56,7 @@ def compare_versions(product_name, from_version, to_version):
         # Process changes by connector
         connector_changes = {}
         general_changes = []
+        breaking_changes = []  # New: dedicated breaking changes section
         
         for change in changes:
             # For Starburst, parse section prefixes like [General#], [Delta Lake connector], etc.
@@ -51,21 +69,48 @@ def compare_versions(product_name, from_version, to_version):
                 section_name = change_text[1:section_end].replace('#', '').strip()
                 clean_text = change_text[section_end+1:].strip()
                 
-                # Map section names to connector categories
-                if 'connector' in section_name.lower():
-                    connector_name = section_name
-                elif section_name.lower() in ['breaking change', 'security', 'general']:
-                    connector_name = section_name
-                else:
-                    # Check if it's a known connector type
-                    known_connectors = ['delta lake', 'hive', 'iceberg', 'bigquery', 'oracle', 'opensearch']
+                # Skip version-based sections and analyze content for connector mentions
+                import re
+                version_pattern = r'^\d+-e(\.\d+)?\s+(initial\s+)?changes'
+                
+                if re.match(version_pattern, section_name.lower()):
+                    # This is a version-based section, analyze the content for connector mentions
+                    connector_name = None
+                    known_connectors = ['delta lake', 'hive', 'iceberg', 'bigquery', 'oracle', 'opensearch', 
+                                      'mysql', 'postgresql', 'mongodb', 'elasticsearch', 'databricks', 'redshift']
+                    
+                    # Check if the change content mentions any connectors
                     for conn in known_connectors:
-                        if conn in section_name.lower():
-                            connector_name = f"{conn.title()} Connector"
+                        variations = [conn, conn + ' connector', conn.replace(' ', ''), conn.replace(' ', '-')]
+                        if any(var.lower() in clean_text.lower() for var in variations):
+                            # Use consistent formatting function
+                            connector_name = format_connector_name(conn)
                             break
                     
+                    # If no connector found, it's a general change
                     if not connector_name:
-                        connector_name = section_name
+                        connector_name = None  # Will go to general_changes
+                        
+                elif 'connector' in section_name.lower():
+                    # Direct connector section - use consistent formatting
+                    connector_name = format_connector_name(section_name)
+                elif section_name.lower() in ['breaking change', 'security', 'general']:
+                    # General category sections
+                    connector_name = None  # Will go to general_changes
+                else:
+                    # Check if it's a known connector type mentioned in section name
+                    known_connectors = ['delta lake', 'hive', 'iceberg', 'bigquery', 'oracle', 'opensearch', 
+                                      'mysql', 'postgresql', 'mongodb', 'elasticsearch', 'databricks', 'redshift']
+                    connector_name = None
+                    for conn in known_connectors:
+                        if conn.lower() in section_name.lower():
+                            # Use consistent formatting function
+                            connector_name = format_connector_name(conn)
+                            break
+                    
+                    # If still no match, it's likely a general change
+                    if not connector_name:
+                        connector_name = None  # Will go to general_changes
                 
                 # Create change object with cleaned text
                 change_obj = {
@@ -86,31 +131,215 @@ def compare_versions(product_name, from_version, to_version):
                     'issue_number': change.issue_number
                 }
             
-            # Add to appropriate category
-            if connector_name:
+            # Add to appropriate category - prioritize breaking changes
+            if change_obj.get('is_breaking', False):
+                # All breaking changes go to dedicated breaking changes section
+                breaking_changes.append(change_obj)
+            elif connector_name:
                 if connector_name not in connector_changes:
                     connector_changes[connector_name] = []
                 connector_changes[connector_name].append(change_obj)
             else:
                 general_changes.append(change_obj)
         
+        # Consolidate duplicate connector entries and deduplicate changes
+        consolidated_connectors = {}
+        for connector_name, changes_list in connector_changes.items():
+            # Normalize connector name to title case
+            normalized_name = connector_name.title()
+            if normalized_name not in consolidated_connectors:
+                consolidated_connectors[normalized_name] = []
+            
+            # Deduplicate changes based on text, version, and issue_number
+            existing_changes = consolidated_connectors[normalized_name]
+            for change in changes_list:
+                # Create a unique key for this change
+                change_key = (change['text'], change['version'], change.get('issue_number'))
+                
+                # Check if this change already exists
+                is_duplicate = False
+                for existing_change in existing_changes:
+                    existing_key = (existing_change['text'], existing_change['version'], existing_change.get('issue_number'))
+                    if change_key == existing_key:
+                        is_duplicate = True
+                        break
+                
+                # Only add if not a duplicate
+                if not is_duplicate:
+                    consolidated_connectors[normalized_name].append(change)
+        
+        # Deduplicate breaking changes
+        deduplicated_breaking = []
+        for change in breaking_changes:
+            change_key = (change['text'], change['version'], change.get('issue_number'))
+            is_duplicate = False
+            for existing_change in deduplicated_breaking:
+                existing_key = (existing_change['text'], existing_change['version'], existing_change.get('issue_number'))
+                if change_key == existing_key:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                deduplicated_breaking.append(change)
+        
         # Create summary
         total_changes = len(changes)
-        connector_count = len(connector_changes)
+        connector_count = len(consolidated_connectors)
         
         return {
-            'connector_changes': connector_changes,
+            'connector_changes': consolidated_connectors,
             'general_changes': general_changes,
+            'breaking_changes': deduplicated_breaking,  # New: dedicated breaking changes section
             'summary': {
                 'total_changes': total_changes,
                 'connector_count': connector_count,
-                'general_count': len(general_changes)
+                'general_count': len(general_changes),
+                'breaking_count': len(deduplicated_breaking)  # New: breaking changes count
             }
         }
     
     except Exception as e:
         logger.error(f"Error comparing versions: {e}")
         return None
+
+# generate_connector_report function removed - functionality integrated into main comparison page
+
+@app.route('/export-comparison-pdf')
+def export_comparison_pdf():
+    """Export comparison results to PDF"""
+    product = request.args.get('product', 'trino')
+    from_version = request.args.get('from_version')
+    to_version = request.args.get('to_version')
+    selected_connectors = request.args.getlist('connectors')
+    
+    if not from_version or not to_version:
+        return "Missing required parameters", 400
+    
+    # Get comparison data using the same logic as the compare route
+    comparison = compare_versions(product, from_version, to_version)
+    if not comparison:
+        return "Failed to generate comparison", 500
+    
+    # Filter by selected connectors if any are specified
+    connector_changes = comparison['connector_changes']
+    if selected_connectors:
+        # Filter to only show selected connectors
+        filtered_connector_changes = {}
+        for connector_name, changes in connector_changes.items():
+            # Check if this connector matches any of the selected ones
+            for selected in selected_connectors:
+                if selected.lower() in connector_name.lower():
+                    filtered_connector_changes[connector_name] = changes
+                    break
+        connector_changes = filtered_connector_changes
+    
+    # Sort connectors alphabetically
+    connector_changes = {k: connector_changes[k] for k in sorted(connector_changes.keys())}
+    
+    # Get breaking changes for dedicated section
+    breaking_changes = comparison.get('breaking_changes', [])
+    
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=inch, bottomMargin=inch)
+    
+    # Get styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        textColor=blue
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=12,
+        spaceBefore=20
+    )
+    
+    breaking_style = ParagraphStyle(
+        'BreakingChange',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=red,
+        leftIndent=20,
+        spaceAfter=6
+    )
+    
+    normal_change_style = ParagraphStyle(
+        'NormalChange',
+        parent=styles['Normal'],
+        fontSize=10,
+        leftIndent=20,
+        spaceAfter=6
+    )
+    
+    # Build PDF content
+    story = []
+    
+    # Title
+    title = f"{product.title()} Release Notes Comparison"
+    story.append(Paragraph(title, title_style))
+    
+    # Summary
+    total_changes = sum(len(changes) for changes in connector_changes.values()) + len(comparison['general_changes']) + len(breaking_changes)
+    connector_filter_text = f" (Filtered by: {', '.join(selected_connectors)})" if selected_connectors else ""
+    summary_text = f"""<b>Version Range:</b> {from_version} to {to_version}<br/>
+    <b>Total Changes:</b> {total_changes}{connector_filter_text}<br/>
+    <b>Breaking Changes:</b> {len(breaking_changes)}<br/>
+    <b>Connector Changes:</b> {len(connector_changes)}<br/>
+    <b>General Changes:</b> {len(comparison['general_changes'])}<br/>
+    <b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    """
+    story.append(Paragraph(summary_text, styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Breaking Changes Section
+    if breaking_changes:
+        story.append(Paragraph(f"⚠️ Breaking Changes ({len(breaking_changes)})", heading_style))
+        for change in breaking_changes:
+            version_text = f"<b>v{change['version']}</b>"
+            change_text = f"{version_text} [BREAKING CHANGE] {change['text']}"
+            story.append(Paragraph(change_text, breaking_style))
+        story.append(Spacer(1, 20))
+    
+    # Connector changes
+    if connector_changes:
+        for connector_name, changes in connector_changes.items():
+            # Connector heading
+            connector_title = f"{connector_name} ({len(changes)} changes)"
+            story.append(Paragraph(connector_title, heading_style))
+            
+            # Changes (excluding breaking changes as they have their own section)
+            for change in changes:
+                if not change.get('is_breaking', False):  # Only show non-breaking changes here
+                    version_text = f"<b>v{change['version']}</b>"
+                    change_text = f"{version_text} {change['text']}"
+                    story.append(Paragraph(change_text, normal_change_style))
+    
+    # General changes (excluding breaking changes as they have their own section)
+    if comparison['general_changes']:
+        story.append(Paragraph("General Changes", heading_style))
+        for change in comparison['general_changes']:
+            if not change.get('is_breaking', False):  # Only show non-breaking changes here
+                version_text = f"<b>v{change['version']}</b>"
+                change_text = f"{version_text} {change['text']}"
+                story.append(Paragraph(change_text, normal_change_style))
+    
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    
+    # Create response
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    connector_filter_suffix = f"_{'_'.join(selected_connectors)}" if selected_connectors else ""
+    response.headers['Content-Disposition'] = f'attachment; filename="{product}_comparison_{from_version}_to_{to_version}{connector_filter_suffix}.pdf"'
+    
+    return response
 
 @app.route('/')
 def index():
@@ -174,14 +403,21 @@ def compare():
         product = request.form.get('product', 'trino')
         from_version = request.form.get('from_version')
         to_version = request.form.get('to_version')
+        selected_connectors = request.form.getlist('connectors')
         
         # Redirect to GET endpoint with query parameters
-        return redirect(url_for('compare', product=product, from_version=from_version, to_version=to_version))
+        redirect_url = url_for('compare', product=product, from_version=from_version, to_version=to_version)
+        if selected_connectors:
+            # Add connector parameters to URL
+            connector_params = '&'.join([f'connectors={connector}' for connector in selected_connectors])
+            redirect_url += f'&{connector_params}'
+        return redirect(redirect_url)
     
     # Handle GET request with query parameters
     product = request.args.get('product', 'trino')
     from_version = request.args.get('from_version')
     to_version = request.args.get('to_version')
+    selected_connectors = request.args.getlist('connectors')
     
     if not from_version or not to_version:
         return redirect(url_for('index', product=product))
@@ -194,9 +430,31 @@ def compare():
             logger.error(f"Failed to generate comparison between {from_version} and {to_version}")
             return render_template('index.html', error="Failed to generate comparison. Please try again.")
         
+        # Filter by selected connectors if any are specified
+        connector_changes = comparison['connector_changes']
+        if selected_connectors:
+            # Filter to only show selected connectors
+            filtered_connector_changes = {}
+            for connector_name, changes in connector_changes.items():
+                # Check if this connector matches any of the selected ones
+                for selected in selected_connectors:
+                    if selected.lower() in connector_name.lower():
+                        filtered_connector_changes[connector_name] = changes
+                        break
+            connector_changes = filtered_connector_changes
+        
         # Sort connectors alphabetically
-        connector_changes = {k: comparison['connector_changes'][k] for k in 
-                            sorted(comparison['connector_changes'].keys())}
+        connector_changes = {k: connector_changes[k] for k in 
+                            sorted(connector_changes.keys())}
+        
+        # Update summary counts based on filtered results
+        breaking_changes = comparison.get('breaking_changes', [])
+        filtered_summary = {
+            'total_changes': sum(len(changes) for changes in connector_changes.values()) + len(comparison['general_changes']) + len(breaking_changes),
+            'connector_count': len(connector_changes),
+            'general_count': len(comparison['general_changes']),
+            'breaking_count': len(breaking_changes)
+        }
         
         return render_template('comparison.html', 
                                product=product,
@@ -204,7 +462,9 @@ def compare():
                                to_version=to_version,
                                connector_changes=connector_changes,
                                general_changes=comparison['general_changes'],
-                               summary=comparison['summary'])
+                               breaking_changes=breaking_changes,
+                               summary=filtered_summary,
+                               selected_connectors=selected_connectors)
     
     except Exception as e:
         logger.error(f"Error generating comparison: {e}")
@@ -222,6 +482,8 @@ def refresh_data():
         logger.error(f"Error refreshing data: {e}")
         return redirect(url_for('index', product=product, refresh_status="error", error=str(e)))
 
+# Connector report functionality removed - integrated into main comparison page
+
 @app.route('/api/versions')
 def api_versions():
     """API endpoint to get all available versions for a product"""
@@ -235,7 +497,7 @@ def api_versions():
         product_id=product.id
     ).order_by(Version.version_number.desc()).all()
     
-    return jsonify([v[0] for v in versions])
+    return jsonify({'versions': [v[0] for v in versions]})
 
 @app.route('/api/search')
 def api_search():

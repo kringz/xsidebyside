@@ -21,6 +21,10 @@
             <span class="badge bg-secondary">{{ summary.general_count }} General Changes</span>
         </div>
         <div>
+            <a href="{{ url_for('export_comparison_pdf', product=product, from_version=from_version, to_version=to_version, **dict(connectors=selected_connectors) if selected_connectors else {}) }}" 
+               class="btn btn-sm btn-success me-2" target="_blank">
+                <i class="fa-solid fa-file-pdf me-1"></i>Export PDF
+            </a>
             <button id="expand-all" class="btn btn-sm btn-outline-light me-2">
                 <i class="fa-solid fa-angle-down me-1"></i>Expand All
             </button>
@@ -31,8 +35,52 @@
     </div>
 </div>
 
+{% if breaking_changes %}
+<h3 class="mt-4">
+    <i class="fa-solid fa-exclamation-triangle me-2"></i>Breaking Changes 
+    <span class="badge bg-danger">{{ breaking_changes|length }}</span>
+</h3>
+
+<div class="connector-section">
+    <div class="connector-header">
+        <h4 class="mb-0">
+            <i class="fa-solid fa-warning me-2"></i>Breaking Changes
+        </h4>
+        <span class="connector-badge">
+            {{ breaking_changes|length }} change{{ "s" if breaking_changes|length != 1 }}
+            <span class="collapse-icon">&#9660;</span>
+        </span>
+    </div>
+    <div class="connector-content" style="display: none;">
+        <div class="list-group">
+            {% for change in breaking_changes %}
+                <div class="change-item breaking-change">
+                    <span class="version-badge">v{{ change.version }}</span>
+                    <span class="badge bg-danger">Breaking Change</span>
+                    <p class="mt-2">{{ change.text }}</p>
+                    {% if change.issue_number %}
+                        <small class="text-muted">Issue: {{ change.issue_number }}</small>
+                    {% endif %}
+                    {% if product == 'starburst' %}
+                        <a href="https://docs.starburst.io/latest/release/release-{{ change.version }}.html" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% else %}
+                        <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html" 
+                           target="_blank" class="release-notes-link">
+                            <i class="fa-solid fa-external-link-alt"></i> View in release notes
+                        </a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if connector_changes %}
-<h3>
+<h3 class="mt-4">
     <i class="fa-solid fa-plug me-2"></i>Connector Changes 
     <span class="badge bg-primary">{{ summary.connector_count }}</span>
 </h3>
@@ -41,7 +89,7 @@
 <div class="connector-section">
     <div class="connector-header">
         <h4 class="mb-0">
-            <i class="fa-solid fa-database me-2"></i>{{ connector }} Connector
+            <i class="fa-solid fa-database me-2"></i>{{ connector }}
         </h4>
         <span class="connector-badge">
             {{ changes|length }} change{{ "s" if changes|length != 1 }}
