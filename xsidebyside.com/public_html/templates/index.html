@@ -79,62 +79,16 @@
                                     <i class="fa-solid fa-filter me-2"></i>Filter by Connectors (Optional)
                                 </h5>
                                 <div class="connector-filter-grid">
+                                    {% for connector in connectors %}
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Redshift" id="connector_redshift">
-                                        <label class="form-check-label" for="connector_redshift">Redshift</label>
+                                        <input class="form-check-input" type="checkbox" name="connectors"
+                                               value="{{ connector.name }}"
+                                               id="connector_{{ connector.name|lower|replace(' ', '_')|replace('-', '_') }}">
+                                        <label class="form-check-label" for="connector_{{ connector.name|lower|replace(' ', '_')|replace('-', '_') }}">
+                                            {{ connector.name }}
+                                        </label>
                                     </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Iceberg" id="connector_iceberg">
-                                        <label class="form-check-label" for="connector_iceberg">Iceberg</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Databricks" id="connector_databricks">
-                                        <label class="form-check-label" for="connector_databricks">Databricks</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Glue" id="connector_glue">
-                                        <label class="form-check-label" for="connector_glue">Glue</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="PostgreSQL" id="connector_postgresql">
-                                        <label class="form-check-label" for="connector_postgresql">PostgreSQL</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Delta Lake" id="connector_deltalake">
-                                        <label class="form-check-label" for="connector_deltalake">Delta Lake</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Hive" id="connector_hive">
-                                        <label class="form-check-label" for="connector_hive">Hive</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="BigQuery" id="connector_bigquery">
-                                        <label class="form-check-label" for="connector_bigquery">BigQuery</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Oracle" id="connector_oracle">
-                                        <label class="form-check-label" for="connector_oracle">Oracle</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="OpenSearch" id="connector_opensearch">
-                                        <label class="form-check-label" for="connector_opensearch">OpenSearch</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="MySQL" id="connector_mysql">
-                                        <label class="form-check-label" for="connector_mysql">MySQL</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="SQL Server" id="connector_sqlserver">
-                                        <label class="form-check-label" for="connector_sqlserver">SQL Server</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="MongoDB" id="connector_mongodb">
-                                        <label class="form-check-label" for="connector_mongodb">MongoDB</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="connectors" value="Elasticsearch" id="connector_elasticsearch">
-                                        <label class="form-check-label" for="connector_elasticsearch">Elasticsearch</label>
-                                    </div>
+                                    {% endfor %}
                                 </div>
                                 <div class="mt-3">
                                     <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllConnectors()">
