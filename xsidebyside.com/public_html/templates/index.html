@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ selected_product|title }} Version Comparison - Home{% endblock %}
+{% block title %}Side by Side - {{ selected_product|title }} Version Comparison{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,7 +8,7 @@
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h3 class="mb-0">
-                    <i class="fa-solid fa-code-compare me-2"></i>Compare {{ selected_product|title }} Versions
+                    <i class="fa-solid fa-code-compare me-2"></i>Compare Versions
                 </h3>
             </div>
             <div class="card-body">
@@ -17,17 +17,7 @@
                     {{ error }}
                 </div>
                 {% endif %}
-                
-                {% if request.args.get('refresh_status') == 'success' %}
-                <div class="alert alert-success" role="alert">
-                    <i class="fa-solid fa-check-circle me-2"></i>Version data refreshed successfully!
-                </div>
-                {% elif request.args.get('refresh_status') == 'error' %}
-                <div class="alert alert-danger" role="alert">
-                    <i class="fa-solid fa-exclamation-circle me-2"></i>Error refreshing data: {{ request.args.get('error', 'Unknown error') }}
-                </div>
-                {% endif %}
-                
+
                 <!-- Product Selection -->
                 <div class="mb-4">
                     <div class="row justify-content-center">
@@ -159,12 +149,9 @@
                     </div>
                     
                     <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg me-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fa-solid fa-search me-2"></i>Compare Versions
                         </button>
-                        <a href="{{ url_for('refresh_data', product=selected_product) }}" class="btn btn-outline-secondary btn-lg">
-                            <i class="fa-solid fa-refresh me-2"></i>Refresh {{ selected_product|title }} Data
-                        </a>
                     </div>
                 </form>
                 
@@ -185,22 +172,76 @@
             </div>
             <div class="card-body">
                 <form id="search-form" class="search-form">
-                    <div class="input-group mb-3">
-                        <input type="text" id="search-keyword" class="form-control" 
-                               placeholder="Search for specific changes (min 3 characters)">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fa-solid fa-search"></i> Search
-                        </button>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="input-group">
+                                <input type="text" id="search-keyword" class="form-control"
+                                       placeholder="Search for specific changes (min 3 characters)">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fa-solid fa-search"></i> Search
+                                </button>
+                            </div>
+                            <small class="text-muted">Optionally filter by product, connector, and version range below</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="search-product">
+                                    <option value="">All Products</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.name }}" {% if product.name == selected_product %}selected{% endif %}>
+                                        {{ product.display_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <label for="search-product">Product (Optional)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="search-connector">
+                                    <option value="">All Connectors</option>
+                                    {% for connector in connectors %}
+                                    <option value="{{ connector.name }}">{{ connector.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="search-connector">Connector (Optional)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="search-from-version">
+                                    <option value="">Any Version</option>
+                                    {% for version in versions %}
+                                    <option value="{{ version }}">{{ version }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="search-from-version">From Version (Optional)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating mb-3">
+                                <select class="form-select" id="search-to-version">
+                                    <option value="">Any Version</option>
+                                    {% for version in versions %}
+                                    <option value="{{ version }}">{{ version }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label for="search-to-version">To Version (Optional)</label>
+                            </div>
+                        </div>
                     </div>
                 </form>
-                
+
                 <div id="search-spinner" class="loading-spinner">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="mt-2">Searching...</p>
                 </div>
-                
+
                 <div id="search-results" class="search-results">
                     <!-- Search results will appear here -->
                 </div>

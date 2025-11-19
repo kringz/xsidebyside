@@ -2,6 +2,7 @@ from flask import render_template, request, jsonify, redirect, url_for, make_res
 from app import app, db
 from models import Product, Version, Connector, VersionChange
 from unified_scraper import UnifiedScraper
+from sqlalchemy import cast, Integer, func
 import logging
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -180,19 +181,32 @@ def compare_versions(product_name, from_version, to_version):
                     break
             if not is_duplicate:
                 deduplicated_breaking.append(change)
-        
+
+        # Deduplicate general changes
+        deduplicated_general = []
+        for change in general_changes:
+            change_key = (change['text'], change['version'], change.get('issue_number'))
+            is_duplicate = False
+            for existing_change in deduplicated_general:
+                existing_key = (existing_change['text'], existing_change['version'], existing_change.get('issue_number'))
+                if change_key == existing_key:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                deduplicated_general.append(change)
+
         # Create summary
         total_changes = len(changes)
         connector_count = len(consolidated_connectors)
-        
+
         return {
             'connector_changes': consolidated_connectors,
-            'general_changes': general_changes,
+            'general_changes': deduplicated_general,
             'breaking_changes': deduplicated_breaking,  # New: dedicated breaking changes section
             'summary': {
                 'total_changes': total_changes,
                 'connector_count': connector_count,
-                'general_count': len(general_changes),
+                'general_count': len(deduplicated_general),
                 'breaking_count': len(deduplicated_breaking)  # New: breaking changes count
             }
         }
@@ -390,11 +404,15 @@ def index():
                     versions = [v.version_number for v in version_query]
             except Exception as e:
                 logger.error(f"Error updating database: {e}")
-    
-    return render_template('index.html', 
-                         products=products, 
+
+    # Get all connectors
+    connectors = db.session.query(Connector).order_by(Connector.name).all()
+
+    return render_template('index.html',
+                         products=products,
                          selected_product=selected_product,
-                         versions=versions)
+                         versions=versions,
+                         connectors=connectors)
 
 @app.route('/compare', methods=['GET', 'POST'])
 def compare():
@@ -470,18 +488,7 @@ def compare():
         logger.error(f"Error generating comparison: {e}")
         return redirect(url_for('index', product=product, error=f"Error: {str(e)}"))
 
-@app.route('/refresh')
-def refresh_data():
-    """Force refresh of versions data for a specific product or all products"""
-    product = request.args.get('product')
-    try:
-        with app.app_context():
-            scraper.update_database(product)
-        return redirect(url_for('index', product=product, refresh_status="success"))
-    except Exception as e:
-        logger.error(f"Error refreshing data: {e}")
-        return redirect(url_for('index', product=product, refresh_status="error", error=str(e)))
-
+# Refresh endpoint removed - scraper now runs via cron job
 # Connector report functionality removed - integrated into main comparison page
 
 @app.route('/api/versions')
@@ -489,37 +496,105 @@ def api_versions():
     """API endpoint to get all available versions for a product"""
     product_name = request.args.get('product', 'trino')
     product = db.session.query(Product).filter_by(name=product_name).first()
-    
+
     if not product:
         return jsonify([])
-    
+
     versions = db.session.query(Version.version_number).filter_by(
         product_id=product.id
     ).order_by(Version.version_number.desc()).all()
-    
+
     return jsonify({'versions': [v[0] for v in versions]})
+
+@app.route('/api/connectors')
+def api_connectors():
+    """API endpoint to get all available connectors"""
+    connectors = db.session.query(Connector).order_by(Connector.name).all()
+    return jsonify({'connectors': [c.name for c in connectors]})
 
 @app.route('/api/search')
 def api_search():
     """API endpoint to search for changes by keyword"""
     keyword = request.args.get('keyword', '')
-    
+    product_name = request.args.get('product', '')
+    from_version = request.args.get('from_version', '')
+    to_version = request.args.get('to_version', '')
+    connector_name = request.args.get('connector', '')
+
     if not keyword or len(keyword) < 3:
         return jsonify({"error": "Search term must be at least 3 characters"})
-    
-    changes = db.session.query(VersionChange).filter(
-        VersionChange.change_text.ilike(f'%{keyword}%')
-    ).all()
-    
+
+    # Start with base query
+    query = db.session.query(VersionChange).join(Version).join(Product)
+
+    # Filter by keyword
+    query = query.filter(VersionChange.change_text.ilike(f'%{keyword}%'))
+
+    # Filter by product if specified
+    if product_name:
+        query = query.filter(Product.name == product_name)
+
+    # Get all matching changes (will filter by version in Python)
+    changes = query.all()
+
+    # Helper function to extract numeric version
+    def get_version_number(version_str):
+        """Extract numeric part from version string (e.g., '478' from '478' or '477-e')"""
+        try:
+            return int(version_str.split('-')[0])
+        except (ValueError, AttributeError):
+            return 0
+
+    # Filter by version range if specified
+    if from_version and to_version:
+        from_num = get_version_number(from_version)
+        to_num = get_version_number(to_version)
+        min_ver = min(from_num, to_num)
+        max_ver = max(from_num, to_num)
+        changes = [c for c in changes if min_ver <= get_version_number(c.version.version_number) <= max_ver]
+    elif from_version:
+        from_num = get_version_number(from_version)
+        changes = [c for c in changes if get_version_number(c.version.version_number) >= from_num]
+    elif to_version:
+        to_num = get_version_number(to_version)
+        changes = [c for c in changes if get_version_number(c.version.version_number) <= to_num]
+
     results = []
+    seen = set()  # Track unique combinations to avoid duplicates
+
     for change in changes:
-        connector_name = change.connector.name if change.connector else "General"
-        
+        # Extract connector name from change text (since it's not linked in DB)
+        connector_name_display = "General"
+        if change.change_text.startswith('[') and ']' in change.change_text:
+            section_end = change.change_text.find(']')
+            section_name = change.change_text[1:section_end].replace('#', '').strip()
+
+            # Check if it's a connector section
+            import re
+            if 'connector' in section_name.lower() or any(conn.lower() in section_name.lower() for conn in [
+                'delta lake', 'hive', 'iceberg', 'bigquery', 'oracle', 'opensearch',
+                'mysql', 'postgresql', 'mongodb', 'elasticsearch', 'databricks', 'redshift',
+                'kafka', 'cassandra', 'clickhouse'
+            ]):
+                connector_name_display = section_name
+
+        # Filter by connector name if specified (text-based filtering)
+        if connector_name:
+            if connector_name.lower() not in connector_name_display.lower():
+                continue
+
+        # Create unique key to detect duplicates
+        unique_key = (change.change_text, change.version.version_number)
+        if unique_key in seen:
+            continue
+        seen.add(unique_key)
+
         results.append({
             "version": change.version.version_number,
-            "connector": connector_name,
+            "connector": connector_name_display,
             "text": change.change_text,
-            "is_breaking": change.is_breaking
+            "is_breaking": change.is_breaking,
+            "product": change.version.product.name
         })
-    
+
     return jsonify({"results": results, "count": len(results)})
