@@ -1,9 +1,12 @@
-from flask import render_template, request, jsonify, redirect, url_for, make_response
+from flask import render_template, request, jsonify, redirect, url_for, make_response, Response
+from functools import wraps
 from app import app, db
-from models import Product, Version, Connector, VersionChange
+from models import Product, Version, Connector, VersionChange, SearchEvent, ComparisonEvent
 from unified_scraper import UnifiedScraper
 from sqlalchemy import cast, Integer, func
 import logging
+import hashlib
+import os
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -14,6 +17,88 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 scraper = UnifiedScraper()
+
+# Analytics configuration
+ANALYTICS_ENABLED = os.environ.get('ANALYTICS_ENABLED', 'true').lower() == 'true'
+ANALYTICS_USERNAME = os.environ.get('ANALYTICS_USERNAME', 'admin')
+ANALYTICS_PASSWORD = os.environ.get('ANALYTICS_PASSWORD', 'changeme')
+
+def check_auth(username, password):
+    """Check if a username/password combination is valid."""
+    return username == ANALYTICS_USERNAME and password == ANALYTICS_PASSWORD
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+    return Response(
+        'Authentication required. Please login to access analytics.',
+        401,
+        {'WWW-Authenticate': 'Basic realm="Analytics Dashboard"'}
+    )
+
+def requires_auth(f):
+    """Decorator to require HTTP Basic Auth"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+def get_ip_hash():
+    """Get anonymized hash of client IP for analytics"""
+    if not ANALYTICS_ENABLED:
+        return None
+
+    # Get client IP (handle proxy headers)
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if ip:
+        # Take first IP if multiple (proxy chain)
+        ip = ip.split(',')[0].strip()
+        # Hash the IP for privacy
+        return hashlib.sha256(ip.encode()).hexdigest()
+    return None
+
+def log_search_event(keyword, product, connector, from_version, to_version, result_count):
+    """Log a search event for analytics"""
+    if not ANALYTICS_ENABLED:
+        return
+
+    try:
+        event = SearchEvent(
+            keyword=keyword,
+            product=product,
+            connector=connector,
+            from_version=from_version,
+            to_version=to_version,
+            result_count=result_count,
+            ip_hash=get_ip_hash()
+        )
+        db.session.add(event)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error logging search event: {e}")
+        db.session.rollback()
+
+def log_comparison_event(product, from_version, to_version, selected_connectors):
+    """Log a comparison event for analytics"""
+    if not ANALYTICS_ENABLED:
+        return
+
+    try:
+        connectors_str = ','.join(selected_connectors) if selected_connectors else None
+        event = ComparisonEvent(
+            product=product,
+            from_version=from_version,
+            to_version=to_version,
+            selected_connectors=connectors_str,
+            ip_hash=get_ip_hash()
+        )
+        db.session.add(event)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error logging comparison event: {e}")
+        db.session.rollback()
 
 def format_connector_name(name):
     """Helper function to consistently format connector names without duplicates"""
@@ -473,10 +558,13 @@ def compare():
             'general_count': len(comparison['general_changes']),
             'breaking_count': len(breaking_changes)
         }
-        
-        return render_template('comparison.html', 
+
+        # Log comparison event for analytics
+        log_comparison_event(product, from_version, to_version, selected_connectors)
+
+        return render_template('comparison.html',
                                product=product,
-                               from_version=from_version, 
+                               from_version=from_version,
                                to_version=to_version,
                                connector_changes=connector_changes,
                                general_changes=comparison['general_changes'],
@@ -490,6 +578,120 @@ def compare():
 
 # Refresh endpoint removed - scraper now runs via cron job
 # Connector report functionality removed - integrated into main comparison page
+
+@app.route('/analytics')
+@requires_auth
+def analytics():
+    """Analytics dashboard page (requires HTTP Basic Auth)"""
+    from datetime import timedelta
+    from sqlalchemy import func, distinct
+
+    try:
+        now = datetime.utcnow()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+
+        # Total counts
+        total_searches = db.session.query(SearchEvent).count()
+        total_comparisons = db.session.query(ComparisonEvent).count()
+
+        # Recent counts
+        searches_week = db.session.query(SearchEvent).filter(SearchEvent.timestamp >= week_ago).count()
+        searches_month = db.session.query(SearchEvent).filter(SearchEvent.timestamp >= month_ago).count()
+        comparisons_week = db.session.query(ComparisonEvent).filter(ComparisonEvent.timestamp >= week_ago).count()
+        comparisons_month = db.session.query(ComparisonEvent).filter(ComparisonEvent.timestamp >= month_ago).count()
+
+        # Unique users (based on IP hash)
+        unique_users_all = db.session.query(func.count(distinct(SearchEvent.ip_hash))).scalar() or 0
+        unique_users_week = db.session.query(func.count(distinct(SearchEvent.ip_hash))).filter(SearchEvent.timestamp >= week_ago).scalar() or 0
+
+        # Top search keywords
+        top_keywords = db.session.query(
+            SearchEvent.keyword,
+            func.count(SearchEvent.id).label('count')
+        ).group_by(SearchEvent.keyword).order_by(func.count(SearchEvent.id).desc()).limit(20).all()
+
+        # Top compared version ranges
+        top_comparisons = db.session.query(
+            ComparisonEvent.product,
+            ComparisonEvent.from_version,
+            ComparisonEvent.to_version,
+            func.count(ComparisonEvent.id).label('count')
+        ).group_by(
+            ComparisonEvent.product,
+            ComparisonEvent.from_version,
+            ComparisonEvent.to_version
+        ).order_by(func.count(ComparisonEvent.id).desc()).limit(20).all()
+
+        # Top connectors searched
+        top_connectors_search = db.session.query(
+            SearchEvent.connector,
+            func.count(SearchEvent.id).label('count')
+        ).filter(SearchEvent.connector != None).filter(SearchEvent.connector != '').group_by(
+            SearchEvent.connector
+        ).order_by(func.count(SearchEvent.id).desc()).limit(20).all()
+
+        # Product usage breakdown
+        product_searches = db.session.query(
+            SearchEvent.product,
+            func.count(SearchEvent.id).label('count')
+        ).filter(SearchEvent.product != None).filter(SearchEvent.product != '').group_by(
+            SearchEvent.product
+        ).all()
+
+        product_comparisons = db.session.query(
+            ComparisonEvent.product,
+            func.count(ComparisonEvent.id).label('count')
+        ).group_by(ComparisonEvent.product).all()
+
+        # Average results per search
+        avg_results = db.session.query(func.avg(SearchEvent.result_count)).scalar() or 0
+
+        # Daily activity (last 30 days)
+        daily_searches = db.session.query(
+            func.date(SearchEvent.timestamp).label('date'),
+            func.count(SearchEvent.id).label('count')
+        ).filter(SearchEvent.timestamp >= month_ago).group_by(
+            func.date(SearchEvent.timestamp)
+        ).order_by(func.date(SearchEvent.timestamp)).all()
+
+        daily_comparisons = db.session.query(
+            func.date(ComparisonEvent.timestamp).label('date'),
+            func.count(ComparisonEvent.id).label('count')
+        ).filter(ComparisonEvent.timestamp >= month_ago).group_by(
+            func.date(ComparisonEvent.timestamp)
+        ).order_by(func.date(ComparisonEvent.timestamp)).all()
+
+        stats = {
+            'total': {
+                'searches': total_searches,
+                'comparisons': total_comparisons,
+                'unique_users': unique_users_all
+            },
+            'week': {
+                'searches': searches_week,
+                'comparisons': comparisons_week,
+                'unique_users': unique_users_week
+            },
+            'month': {
+                'searches': searches_month,
+                'comparisons': comparisons_month
+            },
+            'top_keywords': top_keywords,
+            'top_comparisons': top_comparisons,
+            'top_connectors': top_connectors_search,
+            'product_searches': product_searches,
+            'product_comparisons': product_comparisons,
+            'avg_results': round(avg_results, 1),
+            'daily_searches': daily_searches,
+            'daily_comparisons': daily_comparisons
+        }
+
+        return render_template('analytics.html', stats=stats)
+
+    except Exception as e:
+        logger.error(f"Error generating analytics: {e}")
+        return f"Error: {str(e)}", 500
 
 @app.route('/api/versions')
 def api_versions():
@@ -596,5 +798,8 @@ def api_search():
             "is_breaking": change.is_breaking,
             "product": change.version.product.name
         })
+
+    # Log search event for analytics
+    log_search_event(keyword, product_name, connector_name, from_version, to_version, len(results))
 
     return jsonify({"results": results, "count": len(results)})

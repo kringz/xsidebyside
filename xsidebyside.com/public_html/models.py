@@ -73,12 +73,44 @@ class VersionChange(db.Model):
 class ComparisonCache(db.Model):
     """Cache for version comparisons to avoid redundant scraping"""
     __tablename__ = 'comparison_cache'
-    
+
     id = Column(Integer, primary_key=True)
     from_version = Column(String(20), nullable=False)
     to_version = Column(String(20), nullable=False)
     cache_data = Column(Text, nullable=False)  # JSON data of the comparison
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f"<ComparisonCache {self.from_version} to {self.to_version}>"
+
+class SearchEvent(db.Model):
+    """Model for tracking search queries (anonymous analytics)"""
+    __tablename__ = 'search_events'
+
+    id = Column(Integer, primary_key=True)
+    keyword = Column(String(255), nullable=False)
+    product = Column(String(50), nullable=True)
+    connector = Column(String(100), nullable=True)
+    from_version = Column(String(20), nullable=True)
+    to_version = Column(String(20), nullable=True)
+    result_count = Column(Integer, nullable=True)
+    ip_hash = Column(String(64), nullable=True)  # SHA256 hash for estimating unique users
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<SearchEvent '{self.keyword}' at {self.timestamp}>"
+
+class ComparisonEvent(db.Model):
+    """Model for tracking version comparisons (anonymous analytics)"""
+    __tablename__ = 'comparison_events'
+
+    id = Column(Integer, primary_key=True)
+    product = Column(String(50), nullable=False)
+    from_version = Column(String(20), nullable=False)
+    to_version = Column(String(20), nullable=False)
+    selected_connectors = Column(Text, nullable=True)  # Comma-separated list
+    ip_hash = Column(String(64), nullable=True)  # SHA256 hash for estimating unique users
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<ComparisonEvent {self.product} {self.from_version}-{self.to_version} at {self.timestamp}>"

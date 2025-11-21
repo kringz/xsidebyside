@@ -258,7 +258,11 @@ class TrinoScraper(BaseScraper):
                 
                 # Find all lists within this section
                 for ul in next_element.find_all('ul'):
-                    for li in ul.find_all('li'):
+                    # Skip nested lists (they are handled by their parent LI)
+                    if ul.find_parent('li'):
+                        continue
+                        
+                    for li in ul.find_all('li', recursive=False):
                         change_text = li.get_text(strip=True)
                         if change_text and len(change_text) > 10:  # Basic length filter
                             # Extract issue number if present
@@ -278,7 +282,12 @@ class TrinoScraper(BaseScraper):
                 section_next = next_element.find_next_sibling()
                 while section_next and section_next.name not in ['h1', 'h2']:
                     if section_next.name == 'ul':
-                        for li in section_next.find_all('li'):
+                        # Skip nested lists
+                        if section_next.find_parent('li'):
+                            section_next = section_next.find_next_sibling()
+                            continue
+                            
+                        for li in section_next.find_all('li', recursive=False):
                             change_text = li.get_text(strip=True)
                             if change_text and len(change_text) > 10:
                                 # Extract issue number if present
@@ -293,7 +302,12 @@ class TrinoScraper(BaseScraper):
                                 })
                     section_next = section_next.find_next_sibling()
             elif next_element.name == 'ul':  # Direct list under main heading (fallback)
-                for li in next_element.find_all('li'):
+                # Skip nested lists
+                if next_element.find_parent('li'):
+                    next_element = next_element.find_next_sibling()
+                    continue
+                    
+                for li in next_element.find_all('li', recursive=False):
                     change_text = li.get_text(strip=True)
                     if change_text and len(change_text) > 10:
                         # Extract issue number if present
@@ -496,6 +510,7 @@ class StarburstScraper(BaseScraper):
             return []
         
         changes = []
+        seen_texts = set()
         
         # Starburst pages have a different structure - look for changes in sections
         next_element = version_section.find_next_sibling()
@@ -509,35 +524,59 @@ class StarburstScraper(BaseScraper):
                 if not any(word in section_title.lower() for word in ['trino', 'release']):
                     # Find all list items in this section
                     for ul in next_element.find_all('ul'):
-                        for li in ul.find_all('li'):
+                        # Skip nested lists
+                        if ul.find_parent('li'):
+                            continue
+                            
+                        for li in ul.find_all('li', recursive=False):
                             change_text = self._extract_structured_text(li)
                             if self._is_valid_change(change_text):
                                 # Prefix with section name for context
                                 full_text = f"[{section_title}] {change_text}"
+                                
+                                # Deduplicate
+                                if full_text not in seen_texts:
+                                    changes.append({
+                                        'text': full_text,
+                                        'issue_number': None
+                                    })
+                                    seen_texts.add(full_text)
+                    
+                    # Also look for paragraph changes in some sections
+                    for p in next_element.find_all('p'):
+                        # Skip paragraphs inside list items (they are handled by the list item)
+                        if p.find_parent('li'):
+                            continue
+                            
+                        p_text = p.get_text(separator=' ', strip=True)
+                        if self._is_valid_change(p_text) and p_text not in ['', 'This release is a short term support (STS) release.']:
+                            full_text = f"[{section_title}] {p_text}"
+                            
+                            # Deduplicate
+                            if full_text not in seen_texts:
                                 changes.append({
                                     'text': full_text,
                                     'issue_number': None
                                 })
-                    
-                    # Also look for paragraph changes in some sections
-                    for p in next_element.find_all('p'):
-                        p_text = p.get_text(separator=' ', strip=True)
-                        if self._is_valid_change(p_text) and p_text not in ['', 'This release is a short term support (STS) release.']:
-                            full_text = f"[{section_title}] {p_text}"
-                            changes.append({
-                                'text': full_text,
-                                'issue_number': None
-                            })
+                                seen_texts.add(full_text)
             elif next_element.name == 'ul':
+                # Skip nested lists
+                if next_element.find_parent('li'):
+                    next_element = next_element.find_next_sibling()
+                    continue
+
                 # Handle ULs outside of sections (but skip Trino reference lists)
-                for li in next_element.find_all('li'):
+                for li in next_element.find_all('li', recursive=False):
                     change_text = li.get_text(separator=' ', strip=True)
                     # Skip Trino version references and low-quality changes
                     if self._is_valid_change(change_text) and not re.match(r'^Trino \d+$', change_text):
-                        changes.append({
-                            'text': change_text,
-                            'issue_number': None
-                        })
+                        # Deduplicate (no section prefix here)
+                        if change_text not in seen_texts:
+                            changes.append({
+                                'text': change_text,
+                                'issue_number': None
+                            })
+                            seen_texts.add(change_text)
             
             next_element = next_element.find_next_sibling()
         

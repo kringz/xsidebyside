@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics Dashboard - Side by Side{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">
+            <i class="fa-solid fa-chart-line me-2"></i>Analytics Dashboard
+        </h2>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Searches</h5>
+                <h2 class="mb-0">{{ stats.total.searches }}</h2>
+                <small>{{ stats.week.searches }} this week</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5 class="card-title">Total Comparisons</h5>
+                <h2 class="mb-0">{{ stats.total.comparisons }}</h2>
+                <small>{{ stats.week.comparisons }} this week</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5 class="card-title">Unique Users (All)</h5>
+                <h2 class="mb-0">{{ stats.total.unique_users }}</h2>
+                <small>{{ stats.week.unique_users }} this week</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h5 class="card-title">Avg Results/Search</h5>
+                <h2 class="mb-0">{{ stats.avg_results }}</h2>
+                <small>Search effectiveness</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Chart -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Daily Activity (Last 30 Days)</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Searches</th>
+                            <th>Comparisons</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set searches_dict = dict(stats.daily_searches) %}
+                        {% set comparisons_dict = dict(stats.daily_comparisons) %}
+                        {% set all_dates = (stats.daily_searches + stats.daily_comparisons)|map(attribute=0)|unique|sort(reverse=True)|list %}
+                        {% for date in all_dates[:15] %}
+                        <tr>
+                            <td>{{ date }}</td>
+                            <td>{{ searches_dict.get(date, 0) }}</td>
+                            <td>{{ comparisons_dict.get(date, 0) }}</td>
+                            <td><strong>{{ searches_dict.get(date, 0) + comparisons_dict.get(date, 0) }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Keywords and Comparisons -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Top Search Keywords</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Keyword</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for keyword, count in stats.top_keywords %}
+                        <tr>
+                            <td>{{ keyword }}</td>
+                            <td><span class="badge bg-primary">{{ count }}</span></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not stats.top_keywords %}
+                        <tr>
+                            <td colspan="2" class="text-muted">No data yet</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Top Version Comparisons</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Range</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product, from_v, to_v, count in stats.top_comparisons %}
+                        <tr>
+                            <td>{{ product|title }}</td>
+                            <td>{{ from_v }} → {{ to_v }}</td>
+                            <td><span class="badge bg-success">{{ count }}</span></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not stats.top_comparisons %}
+                        <tr>
+                            <td colspan="3" class="text-muted">No data yet</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connector Stats and Product Usage -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Most Searched Connectors</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Connector</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for connector, count in stats.top_connectors %}
+                        <tr>
+                            <td>{{ connector }}</td>
+                            <td><span class="badge bg-info">{{ count }}</span></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not stats.top_connectors %}
+                        <tr>
+                            <td colspan="2" class="text-muted">No data yet</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Product Usage</h4>
+            </div>
+            <div class="card-body">
+                <h6>Searches by Product</h6>
+                <table class="table table-sm mb-3">
+                    {% for product, count in stats.product_searches %}
+                    <tr>
+                        <td>{{ product|title }}</td>
+                        <td><span class="badge bg-primary">{{ count }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </table>
+
+                <h6>Comparisons by Product</h6>
+                <table class="table table-sm">
+                    {% for product, count in stats.product_comparisons %}
+                    <tr>
+                        <td>{{ product|title }}</td>
+                        <td><span class="badge bg-success">{{ count }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Time Period Stats -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Activity by Time Period</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Last 7 Days</h6>
+                        <ul class="list-unstyled">
+                            <li>Searches: <strong>{{ stats.week.searches }}</strong></li>
+                            <li>Comparisons: <strong>{{ stats.week.comparisons }}</strong></li>
+                            <li>Unique Users: <strong>{{ stats.week.unique_users }}</strong></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Last 30 Days</h6>
+                        <ul class="list-unstyled">
+                            <li>Searches: <strong>{{ stats.month.searches }}</strong></li>
+                            <li>Comparisons: <strong>{{ stats.month.comparisons }}</strong></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>All Time</h6>
+                        <ul class="list-unstyled">
+                            <li>Searches: <strong>{{ stats.total.searches }}</strong></li>
+                            <li>Comparisons: <strong>{{ stats.total.comparisons }}</strong></li>
+                            <li>Unique Users: <strong>{{ stats.total.unique_users }}</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <p class="text-muted">
+            <i class="fa-solid fa-info-circle"></i>
+            All analytics are anonymized. IP addresses are hashed for privacy and only used to estimate unique users.
+        </p>
+    </div>
+</div>
+
+{% endblock %}

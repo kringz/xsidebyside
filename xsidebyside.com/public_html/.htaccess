@@ -1,0 +1,2 @@
+# Pass HTTP Authorization header to WSGI for Basic Auth
+WSGIPassAuthorization On
