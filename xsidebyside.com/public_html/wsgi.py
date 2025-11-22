@@ -3,7 +3,23 @@ import os
 from pathlib import Path
 
 # Add the application directory to the Python path
+# Add the application directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Add virtual environment site-packages
+venv_site_packages = "/xsidebyside.com/venv/lib/python3.10/site-packages"
+if os.path.exists(venv_site_packages):
+    sys.path.insert(0, venv_site_packages)
+
+# Debug logging
+print(f"DEBUG: sys.executable: {sys.executable}", file=sys.stderr)
+print(f"DEBUG: sys.path: {sys.path}", file=sys.stderr)
+try:
+    import flask_wtf
+    print(f"DEBUG: flask_wtf file: {flask_wtf.__file__}", file=sys.stderr)
+except ImportError as e:
+    print(f"DEBUG: Failed to import flask_wtf: {e}", file=sys.stderr)
+
 
 # Load environment variables from .env file if it exists
 env_file = Path(__file__).parent / '.env'

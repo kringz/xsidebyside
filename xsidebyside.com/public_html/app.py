@@ -5,6 +5,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_wtf.csrf import CSRFProtect
 
 # Configure logging
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -22,6 +23,7 @@ db = SQLAlchemy(model_class=Base)
 
 # Create the Flask application
 app = Flask(__name__)
+csrf = CSRFProtect(app)
 
 # Configure the application
 app.secret_key = os.environ.get("SESSION_SECRET", "trino_version_comparison_secret")

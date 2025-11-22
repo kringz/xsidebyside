@@ -65,6 +65,7 @@ cp $APP_DIR/trino_sidebyside.conf /etc/apache2/sites-available/$APACHE_SITE_NAME
 a2ensite $APACHE_SITE_NAME
 a2enmod wsgi
 a2enmod rewrite
+a2enmod headers
 
 # Restart Apache to apply changes
 log "Restarting Apache..."

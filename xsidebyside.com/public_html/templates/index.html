@@ -37,6 +37,7 @@
                 </div>
                 
                 <form id="version-form" action="{{ url_for('compare') }}" method="post" class="version-selector">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" id="product-input" name="product" value="{{ selected_product }}">
                     <div class="row align-items-center">
                         <div class="col-md-5">
