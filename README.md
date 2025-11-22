@@ -22,7 +22,7 @@ A Flask-based web application for comparing versions of Trino and Starburst. It 
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/xsidebyside.com.git
+    git clone https://github.com/kringz/xsidebyside.com.git
     cd xsidebyside.com
     ```
 
