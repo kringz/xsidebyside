@@ -406,41 +406,42 @@ class StarburstScraper(BaseScraper):
         return None
     
     def _extract_structured_text(self, li_element):
-        """Extract text from list item preserving nested bullet structure"""
+        """Extract text from list item preserving nested bullet structure and order"""
         result_parts = []
         
-        # Get direct text content (not from nested elements)
-        for content in li_element.contents:
-            if hasattr(content, 'name'):
-                # This is a tag, skip for now
-                continue
-            else:
-                # This is direct text content
-                text = str(content).strip()
+        for child in li_element.children:
+            if child.name in ['ul', 'ol']:
+                # Handle nested lists
+                nested_items = child.find_all('li', recursive=False)
+                for nested_li in nested_items:
+                    nested_text = self._extract_structured_text(nested_li)
+                    if nested_text:
+                        # Add newline before bullet if previous content exists
+                        prefix = "\n" if result_parts else ""
+                        result_parts.append(f"{prefix}• {nested_text}")
+            elif child.name == 'p':
+                # Handle paragraphs
+                text = child.get_text(separator=' ', strip=True)
                 if text:
-                    result_parts.append(text)
+                    # Add newline if previous content exists (unless it was a bullet)
+                    prefix = " " if result_parts and not result_parts[-1].startswith('\n') else ""
+                    if result_parts and result_parts[-1].startswith('\n'):
+                         prefix = "\n"
+                    result_parts.append(f"{prefix}{text}")
+            elif isinstance(child, str):
+                # Handle direct text
+                text = child.strip()
+                if text:
+                    prefix = " " if result_parts and not result_parts[-1].startswith('\n') else ""
+                    result_parts.append(f"{prefix}{text}")
+            else:
+                # Handle other tags (span, code, etc) - treat as inline text
+                text = child.get_text(separator=' ', strip=True)
+                if text:
+                    prefix = " " if result_parts and not result_parts[-1].startswith('\n') else ""
+                    result_parts.append(f"{prefix}{text}")
         
-        # Find nested lists and format them as bullet points
-        nested_lists = li_element.find_all(['ul', 'ol'], recursive=False)
-        for nested_list in nested_lists:
-            nested_items = nested_list.find_all('li')
-            for nested_li in nested_items:
-                nested_text = nested_li.get_text(separator=' ', strip=True)
-                if nested_text:
-                    result_parts.append(f"• {nested_text}")
-        
-        # Get any remaining text after nested lists
-        remaining_text = []
-        for content in li_element.contents:
-            if hasattr(content, 'name') and content.name not in ['ul', 'ol']:
-                text = content.get_text(separator=' ', strip=True)
-                if text and text not in [item.strip('• ') for item in result_parts]:
-                    remaining_text.append(text)
-        
-        result_parts.extend(remaining_text)
-        
-        # Join all parts with appropriate spacing
-        return ' '.join(result_parts).strip()
+        return "".join(result_parts).strip()
     
     def _is_valid_change(self, text):
         """Validate if text represents a meaningful change description"""
@@ -474,6 +475,58 @@ class StarburstScraper(BaseScraper):
         
         return has_meaningful_word or is_descriptive
     
+    def _process_section_content(self, section_element, changes, seen_texts):
+        """Process content of a section, handling nested sections recursively"""
+        # Get section title
+        section_heading = section_element.find(['h1', 'h2', 'h3', 'h4'])
+        section_title = section_heading.get_text(strip=True) if section_heading else "Unknown Section"
+        
+        # Skip sections that are just references to Trino releases
+        if any(word in section_title.lower() for word in ['trino', 'release']) and 'notes' not in section_title.lower():
+            return
+
+        # Find direct list items in this section
+        for ul in section_element.find_all('ul', recursive=False):
+            # Skip nested lists (handled by parent li)
+            if ul.find_parent('li'):
+                continue
+                
+            for li in ul.find_all('li', recursive=False):
+                change_text = self._extract_structured_text(li)
+                if self._is_valid_change(change_text):
+                    # Prefix with section name for context
+                    full_text = f"[{section_title}] {change_text}"
+                    
+                    # Deduplicate
+                    if full_text not in seen_texts:
+                        changes.append({
+                            'text': full_text,
+                            'issue_number': None
+                        })
+                        seen_texts.add(full_text)
+        
+        # Also look for paragraph changes in some sections
+        for p in section_element.find_all('p', recursive=False):
+            # Skip paragraphs inside list items
+            if p.find_parent('li'):
+                continue
+                
+            p_text = p.get_text(separator=' ', strip=True)
+            if self._is_valid_change(p_text) and p_text not in ['', 'This release is a short term support (STS) release.']:
+                full_text = f"[{section_title}] {p_text}"
+                
+                # Deduplicate
+                if full_text not in seen_texts:
+                    changes.append({
+                        'text': full_text,
+                        'issue_number': None
+                    })
+                    seen_texts.add(full_text)
+        
+        # Recursively process nested sections
+        for nested_section in section_element.find_all('section', recursive=False):
+            self._process_section_content(nested_section, changes, seen_texts)
+
     def extract_changes(self, version, notes_html):
         """Extract changes from Starburst release notes HTML for a specific version"""
         soup = BeautifulSoup(notes_html, 'html.parser')
@@ -516,49 +569,7 @@ class StarburstScraper(BaseScraper):
         next_element = version_section.find_next_sibling()
         while next_element and next_element.name not in ['h1', 'h2']:
             if next_element.name == 'section':
-                # Get section title
-                section_heading = next_element.find(['h1', 'h2', 'h3', 'h4'])
-                section_title = section_heading.get_text(strip=True) if section_heading else "Unknown Section"
-                
-                # Skip sections that are just references to Trino releases
-                if not any(word in section_title.lower() for word in ['trino', 'release']):
-                    # Find all list items in this section
-                    for ul in next_element.find_all('ul'):
-                        # Skip nested lists
-                        if ul.find_parent('li'):
-                            continue
-                            
-                        for li in ul.find_all('li', recursive=False):
-                            change_text = self._extract_structured_text(li)
-                            if self._is_valid_change(change_text):
-                                # Prefix with section name for context
-                                full_text = f"[{section_title}] {change_text}"
-                                
-                                # Deduplicate
-                                if full_text not in seen_texts:
-                                    changes.append({
-                                        'text': full_text,
-                                        'issue_number': None
-                                    })
-                                    seen_texts.add(full_text)
-                    
-                    # Also look for paragraph changes in some sections
-                    for p in next_element.find_all('p'):
-                        # Skip paragraphs inside list items (they are handled by the list item)
-                        if p.find_parent('li'):
-                            continue
-                            
-                        p_text = p.get_text(separator=' ', strip=True)
-                        if self._is_valid_change(p_text) and p_text not in ['', 'This release is a short term support (STS) release.']:
-                            full_text = f"[{section_title}] {p_text}"
-                            
-                            # Deduplicate
-                            if full_text not in seen_texts:
-                                changes.append({
-                                    'text': full_text,
-                                    'issue_number': None
-                                })
-                                seen_texts.add(full_text)
+                self._process_section_content(next_element, changes, seen_texts)
             elif next_element.name == 'ul':
                 # Skip nested lists
                 if next_element.find_parent('li'):
