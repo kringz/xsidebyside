@@ -443,26 +443,28 @@ def export_comparison_pdf():
 @app.route('/')
 def index():
     """Home page with product and version selection form"""
-    # Get all available products
-    products = db.session.query(Product).all()
+    # Get all available products (Starburst first)
+    products = db.session.query(Product).order_by(Product.name).all()
+    # Sort to put Starburst first
+    products = sorted(products, key=lambda p: (0 if p.name == 'starburst' else 1, p.name))
     
     # Default to first product or create default products
     if not products:
         try:
             with app.app_context():
-                # Initialize default products
-                trino_product = Product(name='trino', display_name='Trino')
+                # Initialize default products (Starburst first)
                 starburst_product = Product(name='starburst', display_name='Starburst')
-                db.session.add(trino_product)
+                trino_product = Product(name='trino', display_name='Trino')
                 db.session.add(starburst_product)
+                db.session.add(trino_product)
                 db.session.commit()
-                products = [trino_product, starburst_product]
+                products = [starburst_product, trino_product]
         except Exception as e:
             logger.error(f"Error creating products: {e}")
             products = []
     
     # Get selected product from request
-    default_product = products[0].name if products else 'trino'
+    default_product = products[0].name if products else 'starburst'
     selected_product = request.args.get('product', default_product)
     
     # Get versions for selected product

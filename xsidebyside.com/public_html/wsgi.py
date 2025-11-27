@@ -37,6 +37,7 @@ if env_file.exists():
                     os.environ.setdefault(key.strip(), value.strip())
 
 # Import the Flask application
+# Reloaded at 2024-11-26 6:29 PM
 from app import app as application
 
 # Run the WSGI server when this script is executed directly

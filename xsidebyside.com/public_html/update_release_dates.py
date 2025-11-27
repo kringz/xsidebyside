@@ -31,7 +31,9 @@ def update_release_dates(product_name=None, limit=None):
         if product_name:
             products = db.session.query(Product).filter_by(name=product_name).all()
         else:
-            products = db.session.query(Product).all()
+            products = db.session.query(Product).order_by(Product.name).all()
+            # Sort to put Starburst first
+            products = sorted(products, key=lambda p: (0 if p.name == 'starburst' else 1, p.name))
 
         for product in products:
             logger.info(f"\n{'='*60}")

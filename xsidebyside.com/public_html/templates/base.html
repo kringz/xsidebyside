@@ -1,30 +1,39 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Side by Side - Release Notes Comparison{% endblock %}</title>
-    
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=5">
+
     {% block extra_head %}{% endblock %}
 </head>
+
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark sb-navbar">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <div class="d-flex flex-column">
                     <div class="fw-bold fs-5">
                         <i class="fa-solid fa-code-compare"></i> Side by Side
                     </div>
-                    <small class="text-muted" style="font-size: 0.75rem; margin-top: -0.25rem;">Release Notes Comparison</small>
+                    <small class="sb-subtitle" style="font-size: 0.75rem; margin-top: -0.25rem;">Release Notes
+                        Comparison</small>
                 </div>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -57,7 +66,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <footer class="footer mt-5 py-3 bg-dark">
+    <footer class="footer mt-5 py-3 sb-footer">
         <div class="container text-center">
             <span class="text-muted">Side by Side - Release Notes Comparison Tool</span>
         </div>
@@ -67,8 +76,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Custom JavaScript -->
-    <script src="{{ url_for('static', filename='js/script.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}?v=5"></script>
 
     {% block extra_scripts %}{% endblock %}
 </body>
+
 </html>

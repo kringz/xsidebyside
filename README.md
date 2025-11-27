@@ -2,6 +2,8 @@
 
 A Flask-based web application for comparing versions of Trino and Starburst. It allows users to view changes between versions, filter by connectors, and identify breaking changes.
 
+![Application Architecture](docs/images/app_flowchart.png)
+
 ## Features
 
 -   **Version Comparison**: Compare any two versions of Trino or Starburst.
