@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 
 from flask import Flask
@@ -50,6 +51,20 @@ with app.app_context():
         logger.info("Database tables created successfully")
     except Exception as e:
         logger.error(f"Error creating database tables: {e}")
+
+# Custom Jinja filter to normalize text for URL text fragments
+# Removes newlines, collapses whitespace, strips leading/trailing spaces
+def text_fragment_encode(text):
+    """Normalize text for use in URL text fragments (#:~:text=...)"""
+    if not text:
+        return ''
+    # Replace newlines and multiple spaces with single space
+    normalized = re.sub(r'\s+', ' ', text).strip()
+    # URL encode for use in text fragment
+    from urllib.parse import quote
+    return quote(normalized)
+
+app.jinja_env.filters['text_fragment'] = text_fragment_encode
 
 # Import views after initializing the app and database
 from views import *  # noqa: F401, E402

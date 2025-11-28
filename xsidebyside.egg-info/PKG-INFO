@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: xsidebyside
+Version: 0.1.0
+Summary: Trino/Starburst Version Comparison Tool
+Requires-Python: >=3.10
+Requires-Dist: beautifulsoup4>=4.12.0
+Requires-Dist: email-validator>=2.0.0
+Requires-Dist: flask>=2.3.0
+Requires-Dist: flask-sqlalchemy>=3.0.0
+Requires-Dist: flask-wtf>=1.0.0
+Requires-Dist: gunicorn>=20.0.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Requires-Dist: requests>=2.31.0
+Requires-Dist: trafilatura>=1.6.0
