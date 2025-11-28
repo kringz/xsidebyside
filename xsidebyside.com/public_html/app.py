@@ -53,7 +53,7 @@ with app.app_context():
         logger.error(f"Error creating database tables: {e}")
 
 # Custom Jinja filter to normalize text for URL text fragments
-# Uses first sentence only for more reliable matching
+# Uses first ~60 chars for reliable matching
 def text_fragment_encode(text):
     """Normalize text for use in URL text fragments (#:~:text=...)"""
     if not text:
@@ -61,14 +61,12 @@ def text_fragment_encode(text):
     # Replace newlines and multiple spaces with single space
     normalized = re.sub(r'\s+', ' ', text).strip()
     
-    # Extract first sentence (up to first period followed by space or end)
-    # This is more reliable than trying to match long text with special chars
-    first_sentence_match = re.match(r'^([^.]+\.)', normalized)
-    if first_sentence_match:
-        normalized = first_sentence_match.group(1)
-    elif len(normalized) > 80:
-        # If no sentence found, truncate to ~80 chars at word boundary
-        normalized = normalized[:80].rsplit(' ', 1)[0]
+    # Remove bullet points and other special chars that cause matching issues
+    normalized = re.sub(r'[•·]', '', normalized)
+    
+    # Limit to first ~60 chars at word boundary for reliable matching
+    if len(normalized) > 60:
+        normalized = normalized[:60].rsplit(' ', 1)[0]
     
     # URL encode for use in text fragment
     from urllib.parse import quote
