@@ -263,7 +263,7 @@ class TrinoScraper(BaseScraper):
                         continue
                         
                     for li in ul.find_all('li', recursive=False):
-                        change_text = li.get_text(strip=True)
+                        change_text = li.get_text(separator=' ', strip=True)
                         if change_text and len(change_text) > 10:  # Basic length filter
                             # Extract issue number if present
                             issue_match = re.search(r'\(#(\d+)\)', change_text)
@@ -288,7 +288,7 @@ class TrinoScraper(BaseScraper):
                             continue
                             
                         for li in section_next.find_all('li', recursive=False):
-                            change_text = li.get_text(strip=True)
+                            change_text = li.get_text(separator=' ', strip=True)
                             if change_text and len(change_text) > 10:
                                 # Extract issue number if present
                                 issue_match = re.search(r'\(#(\d+)\)', change_text)
@@ -308,7 +308,7 @@ class TrinoScraper(BaseScraper):
                     continue
                     
                 for li in next_element.find_all('li', recursive=False):
-                    change_text = li.get_text(strip=True)
+                    change_text = li.get_text(separator=' ', strip=True)
                     if change_text and len(change_text) > 10:
                         # Extract issue number if present
                         issue_match = re.search(r'\(#(\d+)\)', change_text)
