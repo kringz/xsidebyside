@@ -66,5 +66,20 @@ def text_fragment_encode(text):
 
 app.jinja_env.filters['text_fragment'] = text_fragment_encode
 
+# Filter to convert connector name to anchor slug (e.g., "Alteryx Connector" -> "alteryx-connector")
+def connector_anchor(name):
+    """Convert connector name to URL anchor slug"""
+    if not name:
+        return ''
+    # Remove "Connector" suffix if present, lowercase, replace spaces with hyphens
+    slug = name.lower().strip()
+    if not slug.endswith('connector'):
+        slug = slug + '-connector'
+    else:
+        slug = slug.replace(' ', '-')
+    return slug
+
+app.jinja_env.filters['connector_anchor'] = connector_anchor
+
 # Import views after initializing the app and database
 from views import *  # noqa: F401, E402

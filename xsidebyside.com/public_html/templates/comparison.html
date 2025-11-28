@@ -109,12 +109,12 @@
                         <small class="text-muted">Issue: {{ change.issue_number }}</small>
                     {% endif %}
                     {% if product == 'starburst' %}
-                        <a href="https://docs.starburst.io/latest/release/release-{{ change.version }}.html#:~:text={{ change.text | text_fragment }}" 
+                        <a href="https://docs.starburst.io/latest/release/release-{{ change.version }}.html#{{ connector | connector_anchor }}" 
                            target="_blank" class="release-notes-link">
                             <i class="fa-solid fa-external-link-alt"></i> View in release notes
                         </a>
                     {% else %}
-                        <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html#:~:text={{ change.text | text_fragment }}" 
+                        <a href="https://trino.io/docs/current/release/release-{{ change.version }}.html#{{ connector | connector_anchor }}" 
                            target="_blank" class="release-notes-link">
                             <i class="fa-solid fa-external-link-alt"></i> View in release notes
                         </a>
